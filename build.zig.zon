@@ -1,0 +1,24 @@
+// Zig package metadata for {zitron-examples}
+.{
+    .name = .zitron_examples,
+
+    .version = "0.0.1",
+
+    .minimum_zig_version = "0.14.0",
+
+    .fingerprint = 0x992c77fb6e870f1c,
+
+    .dependencies = .{
+        .zitron = .{
+            .path = "../zitron/",
+        },
+    },
+
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "LICENSE",
+        "README.md",
+    },
+}
