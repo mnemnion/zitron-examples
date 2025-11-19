@@ -134,16 +134,20 @@ test "1 + 2" {
 %endif
     var parser = try Parser.create(std.testing.allocator, 0.0);
     defer parser.destroy();
-    var tok = Tokenizer.init("1 + (2 * 2 - 2)");
+    var tok = Tokenizer.init("5 + (2 * 2 - 2)");
     while (try tok.next()) |t| {
         try parser.parse(t.kind, t);
     } else {
         try parser.finalize();
     }
-    try std.testing.expectApproxEqAbs(3.0, parser.answer, 0.0001);
+    try std.testing.expectApproxEqAbs(7.0, parser.answer, 0.0001);
 %ifdef TRACE && !NO_TRACE
     try trace_me.flush();
 %endif
+}
+
+test "include from same directory" {
+    try std.testing.expectEqual(42, @import("extra/include_me.zig").answer);
 }
 
 }
