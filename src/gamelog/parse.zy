@@ -1,0 +1,39 @@
+//! GameLog Grammar
+//!
+//! A Prolog-inspired grammar based on the notation used in
+//! https://thingspool.net/morsels/page-10.html
+
+program ::= clause_list query.
+program ::= query.
+
+clause_list ::= clause clause_list.
+  ``            clause.
+
+clause ::= predicate ISA predicate_list DOT.
+  ``       predicate DOT.
+
+predicate_list ::= predicate COMMA predicate_list.
+  ``             predicate.
+
+predicate ::= atom.
+  ``          atom PAL term_list PAR.
+
+term_list ::= term.
+  ``          term COMMA term_list.
+
+term ::= NUMBER.
+  `` ::= atom.
+  `` ::= VARIABLE.
+  `` ::= structure.
+
+structure ::= ATOM PAL term_list PAR.
+
+query ::= WHAT predicate_list DOT.
+
+atom ::= SINGLE_STRING|SMALL_ATOM.
+
+%code {
+    test "present" {
+        try std.testing.expect(true);
+    }
+}

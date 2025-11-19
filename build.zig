@@ -15,20 +15,20 @@ pub fn build(b: *std.Build) void {
 
     const zitron_exe = zitron_dep.artifact("zitron");
 
-    const zitron_run = b.addRunArtifact(zitron_exe);
+    const calc_run = b.addRunArtifact(zitron_exe);
 
-    const zitron_write_in = b.addWriteFiles();
+    const calc_write_in = b.addWriteFiles();
 
-    const calc_input_dir = zitron_write_in.addCopyDirectory(b.path("src"), "calc_in", .{});
+    const calc_input_dir = calc_write_in.addCopyDirectory(b.path("src"), "calc_in", .{});
 
-    zitron_run.setCwd(calc_input_dir);
-    zitron_run.addArg("calc.zy");
-    zitron_run.step.dependOn(&zitron_write_in.step);
+    calc_run.setCwd(calc_input_dir);
+    calc_run.addArg("calc.zy");
+    calc_run.step.dependOn(&calc_write_in.step);
 
-    const zitron_write_out = b.addWriteFiles();
-    zitron_write_out.step.dependOn(&zitron_run.step);
+    const calc_write_out = b.addWriteFiles();
+    calc_write_out.step.dependOn(&calc_run.step);
 
-    const calc_rootdir = zitron_write_out.addCopyDirectory(calc_input_dir, "", .{
+    const calc_rootdir = calc_write_out.addCopyDirectory(calc_input_dir, "", .{
         .exclude_extensions = &.{"zy"},
     });
 
@@ -49,9 +49,41 @@ pub fn build(b: *std.Build) void {
         .root_module = calc_mod,
     });
 
-    const run_exe_unit_tests = b.addRunArtifact(calc_unit_tests);
+    const run_calc_unit_tests = b.addRunArtifact(calc_unit_tests);
 
     const test_step = b.step("test", "Run unit tests");
 
-    test_step.dependOn(&run_exe_unit_tests.step);
+    test_step.dependOn(&run_calc_unit_tests.step);
+
+    const prolog_run = b.addRunArtifact(zitron_exe);
+
+    const prolog_write_in = b.addWriteFiles();
+
+    const prolog_input_dir = prolog_write_in.addCopyDirectory(b.path("src/gamelog/"), "prolog_in", .{});
+
+    prolog_run.setCwd(prolog_input_dir);
+    prolog_run.addArg("parse.zy");
+    prolog_run.step.dependOn(&prolog_write_in.step);
+
+    const prolog_write_out = b.addWriteFiles();
+    prolog_write_out.step.dependOn(&prolog_run.step);
+
+    const prolog_rootdir = prolog_write_out.addCopyDirectory(prolog_input_dir, "", .{
+        .exclude_extensions = &.{"zy"},
+    });
+
+    const prolog_mod = b.addModule("prolog_parser", .{
+        .root_source_file = prolog_rootdir.path(b, "parse.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const prolog_unit_tests = b.addTest(.{
+        .filters = test_filters,
+        .root_module = prolog_mod,
+    });
+
+    const run_prolog_unit_tests = b.addRunArtifact(prolog_unit_tests);
+
+    test_step.dependOn(&run_prolog_unit_tests.step);
 }
