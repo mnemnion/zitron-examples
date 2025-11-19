@@ -26,11 +26,13 @@ term ::= NUMBER.
   `` ::= VARIABLE.
   `` ::= structure.
 
-structure ::= ATOM PAL term_list PAR.
+structure ::= atom PAL term_list PAR.
 
 query ::= WHAT predicate_list DOT.
 
-atom ::= SINGLE_STRING|SMALL_ATOM.
+atom ::= SINGLE_STRING|SYMBOL.
+
+
 
 %code {
     test "present" {

@@ -51,9 +51,10 @@ pub fn build(b: *std.Build) void {
 
     const run_calc_unit_tests = b.addRunArtifact(calc_unit_tests);
 
-    const test_step = b.step("test", "Run unit tests");
-
-    test_step.dependOn(&run_calc_unit_tests.step);
+    const calc_grammar_install = b.addInstallFile(calc_rootdir.path(b, "calc.zig"), "calc/calc.zig");
+    calc_grammar_install.step.dependOn(&calc_write_out.step);
+    const calc_tokens_install = b.addInstallFile(calc_rootdir.path(b, "TokenKind.zig"), "calc/TokenKind.zig");
+    calc_tokens_install.step.dependOn(&calc_write_out.step);
 
     const prolog_run = b.addRunArtifact(zitron_exe);
 
@@ -62,6 +63,7 @@ pub fn build(b: *std.Build) void {
     const prolog_input_dir = prolog_write_in.addCopyDirectory(b.path("src/gamelog/"), "prolog_in", .{});
 
     prolog_run.setCwd(prolog_input_dir);
+    prolog_run.addArg("-q"); // Not-quiet for now
     prolog_run.addArg("parse.zy");
     prolog_run.step.dependOn(&prolog_write_in.step);
 
@@ -71,6 +73,13 @@ pub fn build(b: *std.Build) void {
     const prolog_rootdir = prolog_write_out.addCopyDirectory(prolog_input_dir, "", .{
         .exclude_extensions = &.{"zy"},
     });
+
+    const prolog_grammar_install = b.addInstallFile(prolog_rootdir.path(b, "parse.zig"), "gamelog/parse.zig");
+    prolog_grammar_install.step.dependOn(&prolog_write_out.step);
+    const prolog_tokens_install = b.addInstallFile(prolog_rootdir.path(b, "TokenKind.zig"), "gamelog/TokenKind.zig");
+    prolog_tokens_install.step.dependOn(&prolog_write_out.step);
+    const prolog_out_install = b.addInstallFile(prolog_rootdir.path(b, "parse.out"), "gamelog/parse.out");
+    prolog_out_install.step.dependOn(&prolog_write_out.step);
 
     const prolog_mod = b.addModule("prolog_parser", .{
         .root_source_file = prolog_rootdir.path(b, "parse.zig"),
@@ -85,5 +94,14 @@ pub fn build(b: *std.Build) void {
 
     const run_prolog_unit_tests = b.addRunArtifact(prolog_unit_tests);
 
+    const grammars_step = b.step("grammars", "install grammar files");
+    grammars_step.dependOn(&prolog_grammar_install.step);
+    grammars_step.dependOn(&prolog_tokens_install.step);
+    grammars_step.dependOn(&prolog_out_install.step);
+    grammars_step.dependOn(&calc_grammar_install.step);
+    grammars_step.dependOn(&calc_tokens_install.step);
+
+    const test_step = b.step("test", "Run unit tests");
+    test_step.dependOn(&run_calc_unit_tests.step);
     test_step.dependOn(&run_prolog_unit_tests.step);
 }

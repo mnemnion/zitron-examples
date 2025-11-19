@@ -1,3 +1,4 @@
 // Ignore build artifacts
+src/gamelog/TokenKind.zig
 .zig-cache/
 zig-out/
