@@ -94,14 +94,57 @@ pub fn build(b: *std.Build) void {
 
     const run_prolog_unit_tests = b.addRunArtifact(prolog_unit_tests);
 
+    const edn_run = b.addRunArtifact(zitron_exe);
+
+    const edn_write_in = b.addWriteFiles();
+
+    const edn_input_dir = edn_write_in.addCopyDirectory(b.path("src/edn/"), "edn_in", .{});
+
+    edn_run.setCwd(edn_input_dir);
+    edn_run.addArg("-q"); // Not-quiet for now
+    edn_run.addArg("--clean-exit");
+    edn_run.addArg("edn.zy");
+    edn_run.step.dependOn(&edn_write_in.step);
+
+    const edn_write_out = b.addWriteFiles();
+    edn_write_out.step.dependOn(&edn_run.step);
+
+    const edn_rootdir = edn_write_out.addCopyDirectory(edn_input_dir, "", .{
+        .exclude_extensions = &.{"zy"},
+    });
+
+    const edn_grammar_install = b.addInstallFile(edn_rootdir.path(b, "edn.zig"), "edn/edn.zig");
+    edn_grammar_install.step.dependOn(&edn_write_out.step);
+    const edn_tokens_install = b.addInstallFile(edn_rootdir.path(b, "TokenKind.zig"), "edn/TokenKind.zig");
+    edn_tokens_install.step.dependOn(&edn_write_out.step);
+    const edn_out_install = b.addInstallFile(edn_rootdir.path(b, "edn.out"), "edn/edn.out");
+    edn_out_install.step.dependOn(&edn_write_out.step);
+
+    const edn_mod = b.addModule("edn_parser", .{
+        .root_source_file = edn_rootdir.path(b, "edn.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const edn_unit_tests = b.addTest(.{
+        .filters = test_filters,
+        .root_module = edn_mod,
+    });
+
+    const run_edn_unit_tests = b.addRunArtifact(edn_unit_tests);
+
     const grammars_step = b.step("grammars", "install grammar files");
     grammars_step.dependOn(&prolog_grammar_install.step);
     grammars_step.dependOn(&prolog_tokens_install.step);
     grammars_step.dependOn(&prolog_out_install.step);
     grammars_step.dependOn(&calc_grammar_install.step);
     grammars_step.dependOn(&calc_tokens_install.step);
+    grammars_step.dependOn(&edn_grammar_install.step);
+    grammars_step.dependOn(&edn_tokens_install.step);
+    grammars_step.dependOn(&edn_out_install.step);
 
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_calc_unit_tests.step);
     test_step.dependOn(&run_prolog_unit_tests.step);
+    test_step.dependOn(&run_edn_unit_tests.step);
 }

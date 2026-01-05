@@ -1,0 +1,98 @@
+//! Parser for EDN notation
+
+%include {
+const tokenizer = @import("tokenizer.zig");
+const Token = tokenizer.Token;
+const types = @import("types.zig");
+const Atom = types.Atom;
+const Map = types.Map;
+const List = types.List;
+const Vector = types.Vector;
+const Set = types.Set;
+const Form = types.Form;
+const FormCons = types.FormCons;
+
+const ParseContext = struct {
+    lists: std.mem.MemoryPool(FormCons),
+
+};
+
+}
+
+%token_type Token
+
+%type edn {Form}
+%destructor edn { $$.deinit(allocator); }
+%type form {Form}
+%destructor form { $$.deinit(allocator); }
+%type list {List}
+%destructor list { $$.deinit(allocator); }
+%type vector {Vector}
+%destructor vector { $$.deinit(allocator); }
+%type map {Map}
+%destructor map { $$.deinit(allocator); }
+%type atom {Atom}
+%destructor atom { $$.deinit(allocator); }
+
+edn ::= forms.
+
+forms ::= form forms.
+forms ::= form.
+
+form ::= list.
+  ``     map.
+  ``     vector.
+  ``     set.
+  ``     tagged.
+  ``     discard.
+  ``     atom.
+
+list(L) ::= PAL l_forms(F) PAR. @list_build(L; F)
+list(L) ::= PAL PAR. { L = List.new(null); }
+
+l_forms(L) ::= l_form(F) l_forms(Cdr).  @list_cons(L; F, Cdr)
+l_forms(L) ::= l_form(F).  { L = F; }
+l_form(L) ::= form(F). {
+    const cons = try ctx.lists.create();
+    cons.form = F;
+    // L-overwrites-F
+    cons.next = null;
+    L = cons;
+}
+
+map ::= CRL pairs CRR.
+map ::= CRL CRR.
+vector ::= SQL forms SQR.
+vector ::= SQL SQR.
+set ::= LSET forms CRR.
+set ::= LSET CRR.
+tagged ::= TAGGED form.
+discard ::= DISCARD form.
+
+pairs ::= pair pairs.
+
+pair ::= form form.
+
+atom(A) ::= SYMBOL(S).  @atom_symbol(A;S)
+ ``      NUMBER(N).    { A = Atom.new(N); }
+ ``      STRING(S). { A = Atom.new(S); }
+ ``      KEYWORD(K). { A = Atom.new(K); }
+ ``      CHARACTER(C). { A = Atom.new(C); }
+ ``      NIL(N). { A = Atom.new(N); }
+ ``      boolean(B). { A = B; }
+
+boolean(B) ::= TRUE|FALSE(T). {B = Atom.new(T);}
+
+%impl @list_build(L; F) {
+    L = List.new(F.form.reverse());
+}
+
+%impl @list_cons(L; F, Cdr) {
+    const cons = try ctx.lists.create();
+    cons.form = F;
+    L = cons.cons(Cdr);
+}
+
+%impl @atom_symbol(A;S) {
+    A = Atom.new(S);
+}
