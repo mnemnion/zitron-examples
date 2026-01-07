@@ -1,8 +1,9 @@
 //! Parser for EDN notation
 
 %include {
-const tokenizer = @import("tokenizer.zig");
-const Token = tokenizer.Token;
+const tokenize = @import("tokenize.zig");
+const Token = tokenize.Token;
+const Tokenizer = tokenize.Tokenizer;
 const types = @import("types.zig");
 const Atom = types.Atom;
 const Map = types.Map;
@@ -17,49 +18,59 @@ const ParseContext = struct {
 
 };
 
+%ifdef TRACE
+threadlocal var trace_me: *std.Io.Writer = undefined;
+
+const zitron_trace_prompt = "-> ";
+%endif
+
 }
+
+%ifdef TRACE
+%trace_writer "trace_me"
+%endif
 
 %token_type Token
 
-%type edn {Form}
-%destructor edn { $$.deinit(allocator); }
 %type form {Form}
 %destructor form { $$.deinit(allocator); }
-%type list {List}
+%type atom {Form}
+%destructor atom { $$.deinit(allocator); }
+%type list {*FormCons}
 %destructor list { $$.deinit(allocator); }
+%type l_form {*FormCons}
+%destructor list { $$.deinit(allocator); }
+%type l_forms {*FormCons}
+%destructor list { $$.deinit(allocator); }
+
+%ifdef TYPES
+%type edn {Form}
+%destructor edn { $$.deinit(allocator); }
 %type vector {Vector}
 %destructor vector { $$.deinit(allocator); }
 %type map {Map}
 %destructor map { $$.deinit(allocator); }
-%type atom {Atom}
-%destructor atom { $$.deinit(allocator); }
+%endif
 
 edn ::= forms.
 
 forms ::= form forms.
 forms ::= form.
 
-form ::= list.
+form(F) ::= list(L).  @form_list(F;L)
   ``     map.
   ``     vector.
   ``     set.
   ``     tagged.
   ``     discard.
-  ``     atom.
+form ::= atom.
 
-list(L) ::= PAL l_forms(F) PAR. @list_build(L; F)
-list(L) ::= PAL PAR. { L = List.new(null); }
+list(L) ::= PAL l_forms(F) PAR.//    @list_build(L; F)
+list(L) ::= PAL PAR.           //    @empty_list(L)
 
-l_forms(L) ::= l_form(F) l_forms(Cdr).  @list_cons(L; F, Cdr)
-l_forms(L) ::= l_form(F).  { L = F; }
-l_form(L) ::= form(F). {
-    const cons = try ctx.lists.create();
-    cons.form = F;
-    // L-overwrites-F
-    cons.next = null;
-    L = cons;
-}
-
+l_forms(L) ::= l_form(F) l_forms(Cdr).    @list_cons(L; F, Cdr)
+l_forms(L) ::= l_form(F).                 @lforms_lform(L;F)
+l_form(L) ::= form(F).          @lform_form(L;F)
 map ::= CRL pairs CRR.
 map ::= CRL CRR.
 vector ::= SQL forms SQR.
@@ -73,26 +84,117 @@ pairs ::= pair pairs.
 
 pair ::= form form.
 
-atom(A) ::= SYMBOL(S).  @atom_symbol(A;S)
- ``      NUMBER(N).    { A = Atom.new(N); }
- ``      STRING(S). { A = Atom.new(S); }
- ``      KEYWORD(K). { A = Atom.new(K); }
- ``      CHARACTER(C). { A = Atom.new(C); }
- ``      NIL(N). { A = Atom.new(N); }
- ``      boolean(B). { A = B; }
+atom(A) ::= SYMBOL(S).   @atom_symbol(A;S)
+ ``      NUMBER(N).   //   @atom_number(A;N)
+ ``      STRING(S).   //   @atom_string(A;S)
+ ``      KEYWORD(K).  //   @atom_keyword(A;K)
+ ``      CHARACTER(C).//   @atom_character(A;C)
+ ``      NIL(N).      //   @atom_nil(A;N)
+ ``      boolean(B).  //   @atom_boolean(A;B)
 
-boolean(B) ::= TRUE|FALSE(T). {B = Atom.new(T);}
+boolean(B) ::= TRUE|FALSE(T). // {B = Atom.new(T);}
 
-%impl @list_build(L; F) {
-    L = List.new(F.form.reverse());
+%impl @form_list(F; L) {
+    std.debug.print("Form <- List\n", .{});
+    F = Form.new(L);
 }
 
 %impl @list_cons(L; F, Cdr) {
-    const cons = try ctx.lists.create();
-    cons.form = F;
-    L = cons.cons(Cdr);
+    // std.debug.print("List cons {} to {}\n", .{F, Cdr});
+    L = F.cons(Cdr);
+    // const cons = try ctx.lists.create();
+    // cons.form = F;
+    // L = cons.cons(Cdr);
 }
 
-%impl @atom_symbol(A;S) {
-    A = Atom.new(S);
+%impl @atom_symbol(A; S) {
+    std.debug.print("Sym: {}\n", .{S});
+    const atom = try Atom.new(S, allocator);
+    A = Form.new(atom);
+}
+
+%impl @lforms_lform(L;F) {
+    std.debug.print("lforms ::= lform\n", .{});
+    L = F;
+}
+
+%impl @lform_form(L;F) {
+    std.debug.print("Form {}\n", .{F});
+    _ = .{L, F};
+    // const cons = try ctx.lists.create();
+    // cons.form = F;
+    // // L-overwrites-F
+    // cons.next = null;
+    // L = cons;
+}
+
+%ifdef IMPL
+// %impl @list_build(L; F) {
+//     // L = List.new(F.form.reverse());
+// }
+//
+// %impl @empty_list(L) { L = List.new(null); }
+//
+// %impl @list_cons(L; F, Cdr) {
+//     // const cons = try ctx.lists.create();
+//     // cons.form = F;
+//     // L = cons.cons(Cdr);
+// }
+//
+// %impl @lforms_form(L;F) { L = F; }
+//
+// %impl @lform_form(L;F) {
+//     // const cons = try ctx.lists.create();
+//     // cons.form = F;
+//     // // L-overwrites-F
+//     // cons.next = null;
+//     // L = cons;
+// }
+//
+// %impl @atom_symbol(A;S) {
+//     A = Atom.new(S);
+// }
+//
+// %impl @form_atom(F;A) {
+//     std.debug.print("Form from {}\n", .{A});
+//     F = Form.new(A);
+// }
+//
+// %impl @atom_number(A;N)  { A = Atom.new(N); }
+//
+// %impl @atom_string(A;S) { A = Atom.new(S); }
+//
+// %impl @atom_keyword(A;K) { A = Atom.new(K); }
+//
+// %impl @atom_character(A;C) { A = Atom.new(C); }
+//
+// %impl @atom_nil(A;N) { A = Atom.new(N); }
+//
+// %impl @atom_boolean(A;B) { A = B; }
+%endif
+
+%code {
+
+
+test "parse list" {
+
+%ifdef TRACE
+    var stderr_buffer: [1024]u8 = undefined;
+    var stderr_writer = std.fs.File.stderr().writer(&stderr_buffer);
+    trace_me = &stderr_writer.interface;
+%endif
+    // Hmm
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var parser = try Parser.create(allocator);
+    defer parser.destroy();
+    var tok = Tokenizer.init("(foo bar baz)");
+    while (try tok.next()) |t| {
+        try parser.parse(t.kind, t);
+    } else {
+        try parser.finalize();
+    }
+}
+
 }

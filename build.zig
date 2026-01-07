@@ -11,6 +11,7 @@ pub fn build(b: *std.Build) void {
         .optimize = .Debug,
         .enum_file = true,
         .quiet = true,
+        .define = "TRACE",
     });
 
     const zitron_exe = zitron_dep.artifact("zitron");
@@ -133,7 +134,10 @@ pub fn build(b: *std.Build) void {
 
     const run_edn_unit_tests = b.addRunArtifact(edn_unit_tests);
 
-    const grammars_step = b.step("grammars", "install grammar files");
+    const edn_step = b.step("edn", "Run edn tests");
+    edn_step.dependOn(&run_edn_unit_tests.step);
+
+    const grammars_step = b.step("grammars", "Install grammar files");
     grammars_step.dependOn(&prolog_grammar_install.step);
     grammars_step.dependOn(&prolog_tokens_install.step);
     grammars_step.dependOn(&prolog_out_install.step);

@@ -25,7 +25,11 @@ pub const Tokenizer = struct {
     idx: usize = 0,
     line: usize = 1,
 
-    pub fn next(t: Tokenizer) error{BadToken}!?Token {
+    pub fn init(text: [:0]const u8) Tokenizer {
+        return .{ .text = text };
+    }
+
+    pub fn next(t: *Tokenizer) error{BadToken}!?Token {
         var m_symbol: ?TokenKind = null;
         scan: switch (t.text[t.idx]) {
             '(' => {
@@ -61,9 +65,9 @@ pub const Tokenizer = struct {
                 {
                     if (t.text[t.idx] == '\\') t.idx += 1;
                 }
-                if (t.text == '"') {
+                if (t.text[t.idx] == '"') {
                     t.idx += 1;
-                    return Tok(.DOUBLE_STRING, t.text[start..t.idx], t.line);
+                    return Tok(.STRING, t.text[start..t.idx], t.line);
                 } else {
                     return error.BadToken;
                 }
@@ -80,7 +84,7 @@ pub const Tokenizer = struct {
                 } else if (nb == '{') {
                     defer t.idx += 2;
                     return Tok(.LSET, t.text[t.idx..][0..2], t.line);
-                } else if (std.ascii.isAlphabetic(next)) {
+                } else if (std.ascii.isAlphabetic(nb)) {
                     m_symbol = .TAGGED;
                     continue :scan 'a';
                 } else return error.BadToken;
