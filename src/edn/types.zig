@@ -56,14 +56,19 @@ pub const Form = union(enum(u8)) {
     pub fn new(val: anytype) Form {
         const V = @TypeOf(val);
         if (V == *Atom) {
+            std.debug.print("Form: new atom\n", .{});
             return .{ .atom = val };
         } else if (V == *Set) {
+            std.debug.print("Form: new set\n", .{});
             return .{ .set = val };
         } else if (V == *Map) {
+            std.debug.print("Form: new map\n", .{});
             return .{ .map = val };
         } else if (V == *Vector) {
+            std.debug.print("Form: new vector\n", .{});
             return .{ .vector = val };
         } else if (V == *FormCons) {
+            std.debug.print("Form: new list\n", .{});
             return .{ .list = val };
         } else @compileError("Cannot make a Form from a " ++ @typeName(V) ++ ".");
     }
@@ -125,9 +130,8 @@ pub const FormCons = struct {
         return car;
     }
 
-    pub fn cons(car: *FormCons, cdr: *FormCons) *FormCons {
+    pub fn cons(car: *FormCons, cdr: *FormCons) void {
         car.next = cdr;
-        return car;
     }
 
     pub fn deinit(car: *FormCons, allocator: Allocator) void {

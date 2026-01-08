@@ -36,9 +36,9 @@ const zitron_trace_prompt = "-> ";
 %destructor form { $$.deinit(allocator); }
 %type atom {Form}
 %destructor atom { $$.deinit(allocator); }
-%type list {*FormCons}
+%type list {Form}
 %destructor list { $$.deinit(allocator); }
-%type l_form {*FormCons}
+%type l_form {Form}
 %destructor list { $$.deinit(allocator); }
 %type l_forms {*FormCons}
 %destructor list { $$.deinit(allocator); }
@@ -57,20 +57,20 @@ edn ::= forms.
 forms ::= form forms.
 forms ::= form.
 
-form(F) ::= list(L).  @form_list(F;L)
+form ::= list.
   ``     map.
   ``     vector.
   ``     set.
   ``     tagged.
   ``     discard.
-form ::= atom.
+  ``     atom.
 
-list(L) ::= PAL l_forms(F) PAR.//    @list_build(L; F)
+list(F) ::= PAL l_forms(L) PAR.  @list_build(F; L)
 list(L) ::= PAL PAR.           //    @empty_list(L)
 
 l_forms(L) ::= l_form(F) l_forms(Cdr).    @list_cons(L; F, Cdr)
 l_forms(L) ::= l_form(F).                 @lforms_lform(L;F)
-l_form(L) ::= form(F).          @lform_form(L;F)
+l_form ::= form.
 map ::= CRL pairs CRR.
 map ::= CRL CRR.
 vector ::= SQL forms SQR.
@@ -94,38 +94,28 @@ atom(A) ::= SYMBOL(S).   @atom_symbol(A;S)
 
 boolean(B) ::= TRUE|FALSE(T). // {B = Atom.new(T);}
 
-%impl @form_list(F; L) {
-    std.debug.print("Form <- List\n", .{});
+%impl @list_build(F; L) {
+    std.debug.print("\nList build: L {s}, F {s}\n", .{@typeName(@TypeOf(L)), @typeName(@TypeOf(F)),});
     F = Form.new(L);
 }
 
 %impl @list_cons(L; F, Cdr) {
-    // std.debug.print("List cons {} to {}\n", .{F, Cdr});
-    L = F.cons(Cdr);
-    // const cons = try ctx.lists.create();
-    // cons.form = F;
-    // L = cons.cons(Cdr);
+    std.debug.print("List_const:  {s} cons {s} & {s}\n", .{@typeName(@TypeOf(L)), @typeName(@TypeOf(F)), @typeName(@TypeOf(Cdr))});
+    L = try FormCons.create(allocator, F);
+    L.cons(Cdr);
 }
 
 %impl @atom_symbol(A; S) {
-    std.debug.print("Sym: {}\n", .{S});
+    std.debug.print("Sym: {s}\n", .{S.span});
     const atom = try Atom.new(S, allocator);
     A = Form.new(atom);
+    std.debug.print("onstack: {}\n", .{A});
 }
 
 %impl @lforms_lform(L;F) {
     std.debug.print("lforms ::= lform\n", .{});
-    L = F;
-}
-
-%impl @lform_form(L;F) {
-    std.debug.print("Form {}\n", .{F});
-    _ = .{L, F};
-    // const cons = try ctx.lists.create();
-    // cons.form = F;
-    // // L-overwrites-F
-    // cons.next = null;
-    // L = cons;
+    std.debug.print("type L: {s} type F {s}\n", .{@typeName(@TypeOf(L)), @typeName(@TypeOf(F))});
+    L = try FormCons.create(allocator, F);
 }
 
 %ifdef IMPL
