@@ -27,27 +27,29 @@ const zitron_trace_prompt = "-> ";
 }
 
 %ifdef TRACE
-%trace_writer "trace_me"
+trace_writer "trace_me"
 %endif
 
 %token_type Token
 
 %token CHARACTER. // TODO: shim, remove
 
-%type form {Form}
-%destructor form { $$.deinit(allocator); }
+%type form {?Form}
+%destructor form { if ($$) |form| form.deinit(allocator); }
 %type atom {Form}
 %destructor atom { $$.deinit(allocator); }
 %type list {Form}
 %destructor list { $$.deinit(allocator); }
-%type l_forms {*FormCons}
-%destructor list { $$.deinit(allocator); }
+%type l_forms {?*FormCons}
+%destructor l_forms { if ($$) |f_cons| f_cons.deinit(allocator); }
+%type discard { ?Form }
+%destructor discard { if ($$) |form| form.deinit(allocator); }
 %type boolean {*Atom}
 %destructor boolean { $$.destroy(allocator); }
 
 %ifdef TYPES
-%type edn {Form}
-%destructor edn { $$.deinit(allocator); }
+%type edn {?Form}
+%destructor edn { if ($$) |form| form.deinit(allocator); }
 %type vector {Vector}
 %destructor vector { $$.deinit(allocator); }
 %type map {Map}
@@ -64,8 +66,13 @@ form ::= list.
   ``     vector.
   ``     set.
   ``     tagged.
-  ``     discard.
   ``     atom.
+
+form(F) ::=  discard(D). {
+    std.debug.print("Discard to form\n", .{});
+    F = D;
+    // F-overwrites-D
+}
 
 list(F) ::= PAL l_forms(L) PAR.  @list_build(F; L)
 list(F) ::= PAL PAR.             @empty_list(F)
@@ -76,7 +83,7 @@ vector ::= SQL SQR.
 set ::= LSET forms CRR.
 set ::= LSET CRR.
 tagged ::= TAGGED form.
-discard ::= DISCARD form.
+discard(D) ::= DISCARD form(F).  @on_discard(D;F)
 
 l_forms(L) ::= form(F) l_forms(Cdr).    @list_cons(L; F, Cdr)
 l_forms(L) ::= form(F).                 @lforms_form(L;F)
@@ -94,7 +101,7 @@ atom(A) ::= SYMBOL(S).   @atom_symbol(A;S)
 
 %impl @list_build(F; L) {
     std.debug.print("\nList build: L {s}, F {s}\n", .{@typeName(@TypeOf(L)), @typeName(@TypeOf(F)),});
-    std.debug.print("{f}\n", .{L});
+    std.debug.print("{?f}\n", .{L});
     F = Form.new(L);
 }
 
@@ -103,59 +110,70 @@ atom(A) ::= SYMBOL(S).   @atom_symbol(A;S)
     F = Form.new(null);
 }
 
+%impl @on_discard(D;F) {
+    std.debug.print("discarding: {?f}\n", .{F});
+    if (F) |form| form.deinit(allocator);
+    D = null;
+}
+
 %impl @list_cons(L; F, Cdr) {
     std.debug.print(
         "List_cons:  {s} cons {s} & {s}\n",
         .{@typeName(@TypeOf(L)), @typeName(@TypeOf(F)), @typeName(@TypeOf(Cdr))},
     );
-    L = try FormCons.create(allocator, F);
-    L.cons(Cdr);
+    if (F) |form| {
+        std.debug.print("  Consing form {f}\n", .{form});
+        L = try FormCons.create(allocator, form);
+        L.?.cons(Cdr);
+    } else {
+        std.debug.print("  No cons\n", .{});
+        L = Cdr;
+    }
 }
 
 %impl @atom_symbol(A; S) {
-    std.debug.print("Sym: {s}\n", .{S.span});
     const atom = try Atom.new(S, allocator);
     A = Form.new(atom);
-    std.debug.print("onstack: {f}\n", .{A});
+    std.debug.print("Symbol: {f}\n", .{A});
 }
 
 %impl @atom_number(A; N) {
-    std.debug.print("Num: {s}\n", .{N.span});
     const atom = try Atom.new(N, allocator);
     A = Form.new(atom);
-    std.debug.print("onstack: {f}\n", .{A});
+    std.debug.print("Number: {f}\n", .{A});
 }
 
 %impl @atom_string(A; S) {
-    std.debug.print("String: {s}\n", .{S.span});
     const atom = try Atom.new(S, allocator);
     A = Form.new(atom);
-    std.debug.print("onstack: {f}\n", .{A});
+    std.debug.print("String: {f}\n", .{A});
 }
 
 %impl @atom_keyword(A; K) {
-    std.debug.print("KW: {s}\n", .{K.span});
     const atom = try Atom.new(K, allocator);
     A = Form.new(atom);
-    std.debug.print("onstack: {f}\n", .{A});
+    std.debug.print("Keyword: {f}\n", .{A});
 }
 
 %impl @atom_nil(A; N) {
-    std.debug.print("nil: {s}\n", .{N.span});
     const atom = try Atom.new(N, allocator);
     A = Form.new(atom);
-    std.debug.print("onstack: {f}\n", .{A});
+    std.debug.print("nil: {f}\n", .{A});
 }
 
 %impl @atom_boolean(A; B) {
-    std.debug.print("boolean: {s}\n", .{B.span});
     const atom = try Atom.new(B, allocator);
     A = Form.new(atom);
+    std.debug.print("boolean: {f}\n", .{A});
 }
 
 %impl @lforms_form(L;F) {
     std.debug.print("type L: {s} type F {s}\n", .{@typeName(@TypeOf(L)), @typeName(@TypeOf(F))});
-    L = try FormCons.create(allocator, F);
+    if (F) |form| {
+        L = try FormCons.create(allocator, form);
+    } else {
+        L = null;
+    }
 }
 
 %ifdef IMPL
@@ -220,7 +238,7 @@ test "parse list" {
     const allocator = arena.allocator();
     var parser = try Parser.create(allocator);
     defer parser.destroy();
-    var tok = Tokenizer.init("(foo bar baz () 12 true (quux :quuux \"quuuux\") nil)");
+    var tok = Tokenizer.init("(foo bar baz () #_12 true (quux #_:crux :quuux \"quuuux\") nil)");
     while (try tok.next()) |t| {
         try parser.parse(t.kind, t);
     } else {

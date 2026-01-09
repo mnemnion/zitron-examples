@@ -68,9 +68,8 @@ pub const Form = union(enum(u8)) {
     set: *Set,
     map: *Map,
     vector: *Vector,
-    list: *FormCons,
+    list: ?*FormCons,
     nil,
-    empty_list,
 
     pub fn new(val: anytype) Form {
         const V = @TypeOf(val);
@@ -86,11 +85,14 @@ pub const Form = union(enum(u8)) {
         } else if (V == *Vector) {
             std.debug.print("Form: new vector\n", .{});
             return .{ .vector = val };
-        } else if (V == *FormCons) {
+        } else if (V == ?*FormCons or V == *FormCons) {
             std.debug.print("Form: new list\n", .{});
             return .{ .list = val };
         } else if (V == @TypeOf(null)) {
-            return .empty_list;
+            // This is a bit of 'type punning', but list is our
+            // only optional type (in Form), so it's ok.  Or at least, I
+            // can get away with it.
+            return .{ .list = null };
         } else @compileError("Cannot make a Form from a " ++ @typeName(V) ++ ".");
     }
 
@@ -104,8 +106,13 @@ pub const Form = union(enum(u8)) {
             .set => try writer.writeAll("write a formatter for set\n"),
             .vector => try writer.writeAll("write a formatter for vector\n"),
             .map => try writer.writeAll("write a formatter for map\n"),
-            .list => |l| try writer.print("{f}", .{l}),
-            .empty_list => try writer.writeAll("()"),
+            .list => |m_l| {
+                if (m_l) |l| {
+                    try writer.print("{f}", .{l});
+                } else {
+                    try writer.writeAll("()");
+                }
+            },
             .atom => |a| try writer.print("{f}", .{a}),
         }
     }
@@ -169,7 +176,7 @@ pub const FormCons = struct {
         return car;
     }
 
-    pub fn cons(car: *FormCons, cdr: *FormCons) void {
+    pub fn cons(car: *FormCons, cdr: ?*FormCons) void {
         car.next = cdr;
     }
 
