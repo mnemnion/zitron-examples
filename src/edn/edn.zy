@@ -32,16 +32,18 @@ const zitron_trace_prompt = "-> ";
 
 %token_type Token
 
+%token CHARACTER. // TODO: shim, remove
+
 %type form {Form}
 %destructor form { $$.deinit(allocator); }
 %type atom {Form}
 %destructor atom { $$.deinit(allocator); }
 %type list {Form}
 %destructor list { $$.deinit(allocator); }
-%type l_form {Form}
-%destructor list { $$.deinit(allocator); }
 %type l_forms {*FormCons}
 %destructor list { $$.deinit(allocator); }
+%type boolean {*Atom}
+%destructor boolean { $$.destroy(allocator); }
 
 %ifdef TYPES
 %type edn {Form}
@@ -66,11 +68,7 @@ form ::= list.
   ``     atom.
 
 list(F) ::= PAL l_forms(L) PAR.  @list_build(F; L)
-list(L) ::= PAL PAR.           //    @empty_list(L)
-
-l_forms(L) ::= l_form(F) l_forms(Cdr).    @list_cons(L; F, Cdr)
-l_forms(L) ::= l_form(F).                 @lforms_lform(L;F)
-l_form ::= form.
+list(F) ::= PAL PAR.             @empty_list(F)
 map ::= CRL pairs CRR.
 map ::= CRL CRR.
 vector ::= SQL forms SQR.
@@ -80,27 +78,36 @@ set ::= LSET CRR.
 tagged ::= TAGGED form.
 discard ::= DISCARD form.
 
-pairs ::= pair pairs.
+l_forms(L) ::= form(F) l_forms(Cdr).    @list_cons(L; F, Cdr)
+l_forms(L) ::= form(F).                 @lforms_form(L;F)
 
+pairs ::= pair pairs.
 pair ::= form form.
 
 atom(A) ::= SYMBOL(S).   @atom_symbol(A;S)
- ``      NUMBER(N).   //   @atom_number(A;N)
- ``      STRING(S).   //   @atom_string(A;S)
- ``      KEYWORD(K).  //   @atom_keyword(A;K)
- ``      CHARACTER(C).//   @atom_character(A;C)
- ``      NIL(N).      //   @atom_nil(A;N)
- ``      boolean(B).  //   @atom_boolean(A;B)
-
-boolean(B) ::= TRUE|FALSE(T). // {B = Atom.new(T);}
+ ``      NUMBER(N).      @atom_number(A;N)
+ ``      STRING(S).      @atom_string(A;S)
+ ``      KEYWORD(K).     @atom_keyword(A;K)
+ // ``      CHARACTER(C).   @atom_character(A;C)
+ ``      NIL(N).         @atom_nil(A;N)
+ ``      TRUE|FALSE(B).     @atom_boolean(A;B)
 
 %impl @list_build(F; L) {
     std.debug.print("\nList build: L {s}, F {s}\n", .{@typeName(@TypeOf(L)), @typeName(@TypeOf(F)),});
+    std.debug.print("{f}\n", .{L});
     F = Form.new(L);
 }
 
+%impl @empty_list(F) {
+    std.debug.print("Empty list\n", .{});
+    F = Form.new(null);
+}
+
 %impl @list_cons(L; F, Cdr) {
-    std.debug.print("List_const:  {s} cons {s} & {s}\n", .{@typeName(@TypeOf(L)), @typeName(@TypeOf(F)), @typeName(@TypeOf(Cdr))});
+    std.debug.print(
+        "List_cons:  {s} cons {s} & {s}\n",
+        .{@typeName(@TypeOf(L)), @typeName(@TypeOf(F)), @typeName(@TypeOf(Cdr))},
+    );
     L = try FormCons.create(allocator, F);
     L.cons(Cdr);
 }
@@ -109,11 +116,44 @@ boolean(B) ::= TRUE|FALSE(T). // {B = Atom.new(T);}
     std.debug.print("Sym: {s}\n", .{S.span});
     const atom = try Atom.new(S, allocator);
     A = Form.new(atom);
-    std.debug.print("onstack: {}\n", .{A});
+    std.debug.print("onstack: {f}\n", .{A});
 }
 
-%impl @lforms_lform(L;F) {
-    std.debug.print("lforms ::= lform\n", .{});
+%impl @atom_number(A; N) {
+    std.debug.print("Num: {s}\n", .{N.span});
+    const atom = try Atom.new(N, allocator);
+    A = Form.new(atom);
+    std.debug.print("onstack: {f}\n", .{A});
+}
+
+%impl @atom_string(A; S) {
+    std.debug.print("String: {s}\n", .{S.span});
+    const atom = try Atom.new(S, allocator);
+    A = Form.new(atom);
+    std.debug.print("onstack: {f}\n", .{A});
+}
+
+%impl @atom_keyword(A; K) {
+    std.debug.print("KW: {s}\n", .{K.span});
+    const atom = try Atom.new(K, allocator);
+    A = Form.new(atom);
+    std.debug.print("onstack: {f}\n", .{A});
+}
+
+%impl @atom_nil(A; N) {
+    std.debug.print("nil: {s}\n", .{N.span});
+    const atom = try Atom.new(N, allocator);
+    A = Form.new(atom);
+    std.debug.print("onstack: {f}\n", .{A});
+}
+
+%impl @atom_boolean(A; B) {
+    std.debug.print("boolean: {s}\n", .{B.span});
+    const atom = try Atom.new(B, allocator);
+    A = Form.new(atom);
+}
+
+%impl @lforms_form(L;F) {
     std.debug.print("type L: {s} type F {s}\n", .{@typeName(@TypeOf(L)), @typeName(@TypeOf(F))});
     L = try FormCons.create(allocator, F);
 }
@@ -165,6 +205,7 @@ boolean(B) ::= TRUE|FALSE(T). // {B = Atom.new(T);}
 
 %code {
 
+const zitron_no_error_recovery = true;
 
 test "parse list" {
 
@@ -179,11 +220,13 @@ test "parse list" {
     const allocator = arena.allocator();
     var parser = try Parser.create(allocator);
     defer parser.destroy();
-    var tok = Tokenizer.init("(foo bar baz)");
+    var tok = Tokenizer.init("(foo bar baz () 12 true (quux :quuux \"quuuux\") nil)");
     while (try tok.next()) |t| {
         try parser.parse(t.kind, t);
     } else {
+        std.debug.print("finalizing\n", .{});
         try parser.finalize();
+        std.debug.print("final\n",.{});
     }
 }
 

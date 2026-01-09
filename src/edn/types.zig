@@ -9,6 +9,8 @@ pub const Atom = union(enum(u8)) {
     keyword: Keyword,
     string: []const u8,
 
+    pub const the_nil: Atom = .nil;
+
     pub fn new(t: Token, allocator: Allocator) !*Atom {
         const new_atom = try allocator.create(Atom);
         switch (t.kind) {
@@ -22,7 +24,10 @@ pub const Atom = union(enum(u8)) {
             },
             .KEYWORD => new_atom.* = .{ .keyword = try Keyword.new(t, allocator) },
             // TODO: escapes and such
-            .STRING => new_atom.* = .{ .string = try allocator.dupe(u8, t.span[1 .. t.span.len - 2]) },
+            .STRING => {
+                const str = try std.zig.string_literal.parseAlloc(allocator, t.span);
+                new_atom.* = .{ .string = str };
+            },
             else => unreachable,
         }
         return new_atom;
@@ -35,6 +40,18 @@ pub const Atom = union(enum(u8)) {
             .keyword => |kw| allocator.free(kw.symbol),
         }
         allocator.destroy(atom);
+    }
+
+    pub fn format(atom: *const Atom, writer: *std.Io.Writer) !void {
+        switch (atom.*) {
+            .symbol => |s| try writer.writeAll(s),
+            .number => |n| try writer.print("{d}", .{n}),
+            .keyword => |k| try writer.print("{f}", .{k}),
+            .string => |s| try writer.print("\"{s}\"", .{s}),
+            .nil => try writer.writeAll("∅"),
+            .boolean => |b| try writer.print("`{any}`", .{b}),
+            else => try writer.writeAll("more atoms"),
+        }
     }
 };
 
@@ -52,6 +69,8 @@ pub const Form = union(enum(u8)) {
     map: *Map,
     vector: *Vector,
     list: *FormCons,
+    nil,
+    empty_list,
 
     pub fn new(val: anytype) Form {
         const V = @TypeOf(val);
@@ -70,11 +89,25 @@ pub const Form = union(enum(u8)) {
         } else if (V == *FormCons) {
             std.debug.print("Form: new list\n", .{});
             return .{ .list = val };
+        } else if (V == @TypeOf(null)) {
+            return .empty_list;
         } else @compileError("Cannot make a Form from a " ++ @typeName(V) ++ ".");
     }
 
     pub fn deinit(form: Form, allocator: Allocator) void {
         _ = .{ form, allocator };
+    }
+
+    pub fn format(form: Form, writer: *std.Io.Writer) !void {
+        switch (form) {
+            .nil => try writer.writeAll("∅"),
+            .set => try writer.writeAll("write a formatter for set\n"),
+            .vector => try writer.writeAll("write a formatter for vector\n"),
+            .map => try writer.writeAll("write a formatter for map\n"),
+            .list => |l| try writer.print("{f}", .{l}),
+            .empty_list => try writer.writeAll("()"),
+            .atom => |a| try writer.print("{f}", .{a}),
+        }
     }
 
     pub fn deinit1(form: Form, allocator: Allocator) void {
@@ -113,6 +146,10 @@ pub const Form = union(enum(u8)) {
 pub const Keyword = struct {
     symbol: []const u8,
 
+    pub fn format(k: *const Keyword, writer: anytype) !void {
+        try writer.print(":{s}", .{k.symbol});
+    }
+
     pub fn new(t: Token, allocator: Allocator) !Keyword {
         assert(t.span[0] == ':');
         return .{ .symbol = try allocator.dupe(u8, t.span[1..]) };
@@ -123,6 +160,8 @@ pub const FormCons = struct {
     form: Form,
     next: ?*FormCons,
 
+    pub const empty: FormCons = .{ .form = .nil, .next = null };
+
     pub fn create(allocator: Allocator, form: Form) !*FormCons {
         var car = try allocator.create(FormCons);
         car.form = form;
@@ -132,6 +171,16 @@ pub const FormCons = struct {
 
     pub fn cons(car: *FormCons, cdr: *FormCons) void {
         car.next = cdr;
+    }
+
+    pub fn format(car: *FormCons, writer: *std.Io.Writer) !void {
+        var next: ?*FormCons = car;
+        try writer.writeByte('(');
+        while (next) |this| : (next = this.next) {
+            try writer.print("{f}", .{this.form});
+            if (this.next) |_| try writer.writeAll(", ");
+        }
+        try writer.writeByte(')');
     }
 
     pub fn deinit(car: *FormCons, allocator: Allocator) void {

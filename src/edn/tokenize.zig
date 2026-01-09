@@ -20,6 +20,13 @@ const key_words = std.StaticStringMap(TokenKind).initComptime(.{
     .{ "nil", .NIL },
 });
 
+const char_words = std.StaticStringMap(usize).initComptime(.{
+    .{ "tab", 3 },
+    .{ "space", 5 },
+    .{ "newline", 7 },
+    .{ "return", 6 },
+});
+
 pub const Tokenizer = struct {
     text: [:0]const u8,
     idx: usize = 0,
@@ -155,6 +162,19 @@ pub const Tokenizer = struct {
                     return error.BadToken;
                 }
             },
+            '\\' => {
+                // We need to recognize a little better here, but edn uses
+                // weird stuff like \tab so we'll let the parser deal with
+                // some kinds of malformation, since it needs to make this
+                // into an atom and such.
+                t.idx += 1;
+                const start = t.idx;
+                if (t.text[t.idx] == ' ') {
+                    return error.BadToken;
+                }
+                while (std.ascii.isAlphanumeric(t.text[t.idx])) : (t.idx += 1) {}
+                return Tok(.CHARACTER, t.text[start..t.idx], t.line);
+            },
             ' ', '\t', '\n', ',' => |w| {
                 if (w == '\n') t.line += 1;
                 t.idx += 1;
@@ -166,7 +186,9 @@ pub const Tokenizer = struct {
                 if (t.text[t.idx] == 0) return null;
                 continue :scan t.text[t.idx];
             },
-            0 => return null,
+            0 => {
+                return null;
+            },
             else => {
                 t.idx += 1; // No reason to loop forever here
                 return error.BadToken;

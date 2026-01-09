@@ -11,7 +11,7 @@ pub fn build(b: *std.Build) void {
         .optimize = .Debug,
         .enum_file = true,
         .quiet = true,
-        .define = "TRACE",
+        // .define = "TRACE",
     });
 
     const zitron_exe = zitron_dep.artifact("zitron");
@@ -127,15 +127,39 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    const edn_unit_tests = b.addTest(.{
-        .filters = test_filters,
-        .root_module = edn_mod,
+    const ztap_dep = b.dependency("ztap", .{
+        .target = b.graph.host, // Runs on host!
+        .optimize = optimize,
     });
 
-    const run_edn_unit_tests = b.addRunArtifact(edn_unit_tests);
+    // ZTAP test runner step.
+    const edn_unit_tests = b.addTest(.{
+        .name = "ztap-run",
+        .root_module = edn_mod,
+        .filters = test_filters,
+        // With the provided test runner:
+        .test_runner = .{ .path = ztap_dep.namedLazyPath("runner"), .mode = .simple },
+        // Or you can use your own:
+        // .test_runner = .{ .path = b.path("src/ztap_custom_runner.zig"), .mode = .simple },
+    });
+    edn_unit_tests.root_module.addImport("ztap", ztap_dep.module("ztap"));
+
+    // To put the runner in zig-out etc.
+    b.installArtifact(edn_unit_tests);
+
+    const run_edn_tests = b.addRunArtifact(edn_unit_tests);
+
+    // To always run tests, even if nothing changed, add this:
+    // run_ztap_tests.has_side_effects = true;
+
+    // TAP producers write to stdout.
+    //
+    // To suppress stderr chatter, you can uncomment this:
+
+    // _ = run_ztap_tests.captureStdErr();
 
     const edn_step = b.step("edn", "Run edn tests");
-    edn_step.dependOn(&run_edn_unit_tests.step);
+    edn_step.dependOn(&run_edn_tests.step);
 
     const grammars_step = b.step("grammars", "Install grammar files");
     grammars_step.dependOn(&prolog_grammar_install.step);
@@ -150,5 +174,5 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_calc_unit_tests.step);
     test_step.dependOn(&run_prolog_unit_tests.step);
-    test_step.dependOn(&run_edn_unit_tests.step);
+    test_step.dependOn(&run_edn_tests.step);
 }

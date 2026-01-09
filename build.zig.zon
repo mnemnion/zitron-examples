@@ -1,4 +1,4 @@
-// Zig package metadata for {zitron-examples}
+// Zig package metadata for zitron-examples
 .{
     .name = .zitron_examples,
 
@@ -11,6 +11,9 @@
     .dependencies = .{
         .zitron = .{
             .path = "../zitron/",
+        },
+        .ztap = .{
+            .path = "../ztap/",
         },
     },
 
