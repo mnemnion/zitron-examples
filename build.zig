@@ -11,6 +11,7 @@ pub fn build(b: *std.Build) void {
         .optimize = .Debug,
         .enum_file = true,
         .quiet = true,
+        .show_conflicts = true,
         // .define = "TRACE",
     });
 

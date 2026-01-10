@@ -111,7 +111,16 @@ pub const Form = union(enum(u8)) {
                 }
                 try writer.writeAll(" }");
             },
-            .vector => try writer.writeAll("write a formatter for vector\n"),
+            .vector => |vec| {
+                try writer.writeByte('[');
+                for (vec.items, 0..) |item, i| {
+                    try writer.print("{f}", .{item});
+                    if (i < vec.items.len - 1) {
+                        try writer.writeByte(' ');
+                    }
+                }
+                try writer.writeByte(']');
+            },
             .map => |map| {
                 try writer.writeByte('{');
                 var key_iter = map.iterator();
