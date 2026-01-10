@@ -4,6 +4,7 @@
 const tokenize = @import("tokenize.zig");
 const Token = tokenize.Token;
 const Tokenizer = tokenize.Tokenizer;
+
 const types = @import("types.zig");
 const Atom = types.Atom;
 const Map = types.Map;
@@ -12,6 +13,7 @@ const Vector = types.Vector;
 const Set = types.Set;
 const Form = types.Form;
 const FormCons = types.FormCons;
+const Pair = types.Pair;
 
 const ParseContext = struct {
     lists: std.mem.MemoryPool(FormCons),
@@ -24,11 +26,13 @@ threadlocal var trace_me: *std.Io.Writer = undefined;
 const zitron_trace_prompt = "-> ";
 %endif
 
-}
+} /* end include */
 
 %ifdef TRACE
 trace_writer "trace_me"
 %endif
+
+/* Types */
 
 %token_type Token
 
@@ -36,48 +40,54 @@ trace_writer "trace_me"
 
 %type form {?Form}
 %destructor form { if ($$) |form| form.deinit(allocator); }
+
 %type atom {Form}
 %destructor atom { $$.deinit(allocator); }
+
 %type list {Form}
 %destructor list { $$.deinit(allocator); }
+
+%type map {Form}
+%destructor map { $$.deinit(allocator); }
+
 %type l_forms {?*FormCons}
 %destructor l_forms { if ($$) |f_cons| f_cons.deinit(allocator); }
+
 %type discard { ?Form }
 %destructor discard { if ($$) |form| form.deinit(allocator); }
+
 %type boolean {*Atom}
 %destructor boolean { $$.destroy(allocator); }
 
-%ifdef TYPES
-%type edn {?Form}
-%destructor edn { if ($$) |form| form.deinit(allocator); }
-%type vector {Vector}
-%destructor vector { $$.deinit(allocator); }
-%type map {Map}
-%destructor map { $$.deinit(allocator); }
-%endif
+%type pair {?*Pair}
+%destructor pair { if ($$) |pair| pair.destroy(allocator); }
+
+%type pairs {*Map}
+%destructor pairs { $$.deinit(allocator); }
+
+%type m_form { Form }
+%destructor m_form { $$.deinit(allocator); }
+
+/* Grammar */
 
 edn ::= forms.
 
 forms ::= form forms.
 forms ::= form.
 
-form ::= list.
-  ``     map.
-  ``     vector.
-  ``     set.
-  ``     tagged.
-  ``     atom.
+form  ::= list.
+  ``      map.
+  ``      vector.
+  ``      set.
+  ``      tagged.
+  ``      atom.
 
-form(F) ::=  discard(D). {
-    std.debug.print("Discard to form\n", .{});
-    F = D;
-    // F-overwrites-D
-}
+form(F) ::=  discard(D). @discard_form(F;D)
 
-list(F) ::= PAL l_forms(L) PAR.  @list_build(F; L)
+list(F) ::= PAL l_forms(L) PAR.  @list_build(F;L)
 list(F) ::= PAL PAR.             @empty_list(F)
-map ::= CRL pairs CRR.
-map ::= CRL CRR.
+map(F) ::= CRL pairs(M) CRR.     @map_form(F;M)
+map(F) ::= CRL CRR.              @empty_map(F)
 vector ::= SQL forms SQR.
 vector ::= SQL SQR.
 set ::= LSET forms CRR.
@@ -85,22 +95,44 @@ set ::= LSET CRR.
 tagged ::= TAGGED form.
 discard(D) ::= DISCARD form(F).  @on_discard(D;F)
 
-l_forms(L) ::= form(F) l_forms(Cdr).    @list_cons(L; F, Cdr)
-l_forms(L) ::= form(F).                 @lforms_form(L;F)
+l_forms(L) ::= form(F) l_forms(Cdr).  @list_cons(L; F, Cdr)
+l_forms(L) ::= form(F).               @lforms_form(L;F)
 
-pairs ::= pair pairs.
-pair ::= form form.
+pairs(M) ::= pair(P) pairs(Mcdr).         @map_build(M; P, Mcdr)
+pairs(M) ::= pair(P).                     @map_init(M;P)
+pair(P)  ::= m_form(K) m_form(V).         @on_pair(P; K, V)
+pair(P) ::= m_form(K) discard m_form(V).  @on_pair2(P; K, V)
+pair(P) ::= discard.                      @discard_in_map(P)
 
-atom(A) ::= SYMBOL(S).   @atom_symbol(A;S)
- ``      NUMBER(N).      @atom_number(A;N)
- ``      STRING(S).      @atom_string(A;S)
- ``      KEYWORD(K).     @atom_keyword(A;K)
+m_form ::= list.
+  ``       map.
+  ``       vector.
+  ``       set.
+  ``       tagged.
+  ``       atom.
+
+atom(A) ::= SYMBOL(S).      @atom_symbol(A;S)
+ ``         NUMBER(N).      @atom_number(A;N)
+ ``         STRING(S).      @atom_string(A;S)
+ ``         KEYWORD(K).     @atom_keyword(A;K)
  // ``      CHARACTER(C).   @atom_character(A;C)
- ``      NIL(N).         @atom_nil(A;N)
- ``      TRUE|FALSE(B).     @atom_boolean(A;B)
+ ``         NIL(N).         @atom_nil(A;N)
+ ``         TRUE|FALSE(B).  @atom_boolean(A;B)
 
-%impl @list_build(F; L) {
-    std.debug.print("\nList build: L {s}, F {s}\n", .{@typeName(@TypeOf(L)), @typeName(@TypeOf(F)),});
+/* Code Actions */
+
+%impl @discard_form(F;D) {
+    std.debug.print("Discard to form\n", .{});
+    F = D;
+    // F-overwrites-D
+}
+
+
+%impl @list_build(F;L) {
+    std.debug.print(
+        "\nList build: L {s}, F {s}\n",
+        .{@typeName(@TypeOf(L)), @typeName(@TypeOf(F)),
+    });
     std.debug.print("{?f}\n", .{L});
     F = Form.new(L);
 }
@@ -108,6 +140,17 @@ atom(A) ::= SYMBOL(S).   @atom_symbol(A;S)
 %impl @empty_list(F) {
     std.debug.print("Empty list\n", .{});
     F = Form.new(null);
+}
+
+%impl @map_form(F;M) {
+    std.debug.print("Map-to-form\n", .{});
+    F = Form.new(M);
+}
+
+%impl @empty_map(F) {
+    const map = try allocator.create(Map);
+    map.* = .empty;
+    F = Form.new(map);
 }
 
 %impl @on_discard(D;F) {
@@ -129,6 +172,55 @@ atom(A) ::= SYMBOL(S).   @atom_symbol(A;S)
         std.debug.print("  No cons\n", .{});
         L = Cdr;
     }
+}
+
+%impl @lforms_form(L;F) {
+    std.debug.print("type L: {s} type F {s}\n", .{@typeName(@TypeOf(L)), @typeName(@TypeOf(F))});
+    if (F) |form| {
+        L = try FormCons.create(allocator, form);
+    } else {
+        L = null;
+    }
+}
+
+%impl @map_build(M; P, Mcdr) {
+    std.debug.print("map build\n", .{});
+    if (P) |pair| {
+        if (try Mcdr.fetchPut(allocator, pair.key, pair.value)) |kv| {
+            kv.key.deinit(allocator);
+            kv.value.deinit(allocator);
+        }
+        allocator.destroy(pair);
+    }
+    M = Mcdr;
+}
+
+%impl @map_init(M;P) {
+    std.debug.print("init map\n", .{});
+    const map = try allocator.create(Map);
+    map.* = .empty;
+    if (P) |pair| {
+        try map.put(allocator, pair.key, pair.value);
+        allocator.destroy(pair);
+    }
+    M = map;
+}
+
+%impl @on_pair(P; K, V) {
+    std.debug.print("Making a pair: {f} and {f}, into ", .{K, V});
+    P = try Pair.create(allocator, K, V);
+    std.debug.print("{f}\n", .{P.?});
+}
+
+%impl @on_pair2(P; K, V) {
+    std.debug.print("Making a pair (after a middle discard): {f} and {f}, into ", .{K, V});
+    P = try Pair.create(allocator, K, V);
+    std.debug.print("{f}\n", .{P.?});
+}
+
+%impl @discard_in_map(P) {
+    std.debug.print("Discard in map\n", .{});
+    P = null;
 }
 
 %impl @atom_symbol(A; S) {
@@ -167,60 +259,6 @@ atom(A) ::= SYMBOL(S).   @atom_symbol(A;S)
     std.debug.print("boolean: {f}\n", .{A});
 }
 
-%impl @lforms_form(L;F) {
-    std.debug.print("type L: {s} type F {s}\n", .{@typeName(@TypeOf(L)), @typeName(@TypeOf(F))});
-    if (F) |form| {
-        L = try FormCons.create(allocator, form);
-    } else {
-        L = null;
-    }
-}
-
-%ifdef IMPL
-// %impl @list_build(L; F) {
-//     // L = List.new(F.form.reverse());
-// }
-//
-// %impl @empty_list(L) { L = List.new(null); }
-//
-// %impl @list_cons(L; F, Cdr) {
-//     // const cons = try ctx.lists.create();
-//     // cons.form = F;
-//     // L = cons.cons(Cdr);
-// }
-//
-// %impl @lforms_form(L;F) { L = F; }
-//
-// %impl @lform_form(L;F) {
-//     // const cons = try ctx.lists.create();
-//     // cons.form = F;
-//     // // L-overwrites-F
-//     // cons.next = null;
-//     // L = cons;
-// }
-//
-// %impl @atom_symbol(A;S) {
-//     A = Atom.new(S);
-// }
-//
-// %impl @form_atom(F;A) {
-//     std.debug.print("Form from {}\n", .{A});
-//     F = Form.new(A);
-// }
-//
-// %impl @atom_number(A;N)  { A = Atom.new(N); }
-//
-// %impl @atom_string(A;S) { A = Atom.new(S); }
-//
-// %impl @atom_keyword(A;K) { A = Atom.new(K); }
-//
-// %impl @atom_character(A;C) { A = Atom.new(C); }
-//
-// %impl @atom_nil(A;N) { A = Atom.new(N); }
-//
-// %impl @atom_boolean(A;B) { A = B; }
-%endif
-
 %code {
 
 const zitron_no_error_recovery = true;
@@ -238,7 +276,12 @@ test "parse list" {
     const allocator = arena.allocator();
     var parser = try Parser.create(allocator);
     defer parser.destroy();
-    var tok = Tokenizer.init("(foo bar baz () #_12 true (quux #_:crux :quuux \"quuuux\") nil)");
+    var tok = Tokenizer.init(
+    \\(foo bar baz () #_12 true
+    \\   (quux #_:crux :quuux "quuuux")
+    \\   {k1 #_toss :v1, #_toss k2 "v2" #_toss} {}
+    \\   nil)
+    );
     while (try tok.next()) |t| {
         try parser.parse(t.kind, t);
     } else {

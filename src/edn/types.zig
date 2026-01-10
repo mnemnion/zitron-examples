@@ -105,7 +105,14 @@ pub const Form = union(enum(u8)) {
             .nil => try writer.writeAll("∅"),
             .set => try writer.writeAll("write a formatter for set\n"),
             .vector => try writer.writeAll("write a formatter for vector\n"),
-            .map => try writer.writeAll("write a formatter for map\n"),
+            .map => |map| {
+                try writer.writeByte('{');
+                var key_iter = map.iterator();
+                while (key_iter.next()) |elem| {
+                    try writer.print(" {f} {f} ", .{ elem.key_ptr, elem.value_ptr });
+                }
+                try writer.writeByte('}');
+            },
             .list => |m_l| {
                 if (m_l) |l| {
                     try writer.print("{f}", .{l});
@@ -147,6 +154,27 @@ pub const Form = union(enum(u8)) {
                 atom.destroy(allocator);
             },
         }
+    }
+};
+
+pub const Pair = struct {
+    key: Form,
+    value: Form,
+
+    pub fn create(allocator: Allocator, key: Form, value: Form) !*Pair {
+        const new_pair = try allocator.create(Pair);
+        new_pair.key = key;
+        new_pair.value = value;
+        return new_pair;
+    }
+
+    pub fn destroy(pair: *Pair, allocator: Allocator) void {
+        pair.key.deinit(allocator);
+        pair.value.deinit(allocator);
+        allocator.destroy(pair);
+    }
+    pub fn format(pair: *const Pair, writer: anytype) !void {
+        try writer.print("{f},{f}", .{ pair.key, pair.value });
     }
 };
 
