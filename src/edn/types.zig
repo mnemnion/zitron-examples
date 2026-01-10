@@ -103,7 +103,14 @@ pub const Form = union(enum(u8)) {
     pub fn format(form: Form, writer: *std.Io.Writer) !void {
         switch (form) {
             .nil => try writer.writeAll("∅"),
-            .set => try writer.writeAll("write a formatter for set\n"),
+            .set => |set| {
+                try writer.writeAll("#{");
+                var key_iter = set.keyIterator();
+                while (key_iter.next()) |key| {
+                    try writer.print(" {f}", .{key});
+                }
+                try writer.writeAll(" }");
+            },
             .vector => try writer.writeAll("write a formatter for vector\n"),
             .map => |map| {
                 try writer.writeByte('{');

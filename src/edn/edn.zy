@@ -50,6 +50,12 @@ trace_writer "trace_me"
 %type map {Form}
 %destructor map { $$.deinit(allocator); }
 
+%type set {Form}
+%destructor set { $$.deinit(allocator); }
+
+%type s_forms {*Set}
+%destructor s_forms { $$.deinit(allocator); } // TODO: Free elements
+
 %type l_forms {?*FormCons}
 %destructor l_forms { if ($$) |f_cons| f_cons.deinit(allocator); }
 
@@ -63,7 +69,7 @@ trace_writer "trace_me"
 %destructor pair { if ($$) |pair| pair.destroy(allocator); }
 
 %type pairs {*Map}
-%destructor pairs { $$.deinit(allocator); }
+%destructor pairs { $$.deinit(allocator); } // TODO: Free elements
 
 %type m_form { Form }
 %destructor m_form { $$.deinit(allocator); }
@@ -90,8 +96,8 @@ map(F) ::= CRL pairs(M) CRR.     @map_form(F;M)
 map(F) ::= CRL CRR.              @empty_map(F)
 vector ::= SQL forms SQR.
 vector ::= SQL SQR.
-set ::= LSET forms CRR.
-set ::= LSET CRR.
+set(F) ::= LSET s_forms(S) CRR.  @set_form(F;S)
+set(S) ::= LSET CRR.             @empty_set(S)
 tagged ::= TAGGED form.
 discard(D) ::= DISCARD form(F).  @on_discard(D;F)
 
@@ -103,6 +109,9 @@ pairs(M) ::= pair(P).                     @map_init(M;P)
 pair(P)  ::= m_form(K) m_form(V).         @on_pair(P; K, V)
 pair(P) ::= m_form(K) discard m_form(V).  @on_pair2(P; K, V)
 pair(P) ::= discard.                      @discard_in_map(P)
+
+s_forms(S) ::= form(F) s_forms(Set). @set_build(S; F, Set)
+  ``           form(F).              @set_init(S;F)
 
 m_form ::= list.
   ``       map.
@@ -151,6 +160,17 @@ atom(A) ::= SYMBOL(S).      @atom_symbol(A;S)
     const map = try allocator.create(Map);
     map.* = .empty;
     F = Form.new(map);
+}
+
+%impl @set_form(F;S) {
+    std.debug.print("Set-to-form\n", .{});
+    F = Form.new(S);
+}
+
+%impl @empty_set(S) {
+    const set = try allocator.create(Set);
+    set.* = .empty;
+    S = Form.new(set);
 }
 
 %impl @on_discard(D;F) {
@@ -223,6 +243,24 @@ atom(A) ::= SYMBOL(S).      @atom_symbol(A;S)
     P = null;
 }
 
+%impl @set_build(S; F, Set) {
+    if (F) |form| {
+        if (try Set.fetchPut(allocator, form, {})) |entry| {
+            entry.key.deinit(allocator);
+        }
+    }
+    S = Set;
+}
+
+%impl @set_init(S; F) {
+    const set = try allocator.create(Set);
+    set.* = .empty;
+    if (F) |form| {
+        try set.put(allocator, form, {});
+    }
+    S = set;
+}
+
 %impl @atom_symbol(A; S) {
     const atom = try Atom.new(S, allocator);
     A = Form.new(atom);
@@ -280,6 +318,7 @@ test "parse list" {
     \\(foo bar baz () #_12 true
     \\   (quux #_:crux :quuux "quuuux")
     \\   {k1 #_toss :v1, #_toss k2 "v2" #_toss} {}
+    \\   #{ :moe, "curly" larry #_shemp }
     \\   nil)
     );
     while (try tok.next()) |t| {
