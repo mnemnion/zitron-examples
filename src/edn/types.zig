@@ -69,25 +69,23 @@ pub const Form = union(enum(u8)) {
     map: *Map,
     vector: *Vector,
     list: ?*FormCons,
+    tagged: *Tagged,
     nil,
 
     pub fn new(val: anytype) Form {
         const V = @TypeOf(val);
         if (V == *Atom) {
-            std.debug.print("Form: new atom\n", .{});
             return .{ .atom = val };
         } else if (V == *Set) {
-            std.debug.print("Form: new set\n", .{});
             return .{ .set = val };
         } else if (V == *Map) {
-            std.debug.print("Form: new map\n", .{});
             return .{ .map = val };
         } else if (V == *Vector) {
-            std.debug.print("Form: new vector\n", .{});
             return .{ .vector = val };
         } else if (V == ?*FormCons or V == *FormCons) {
-            std.debug.print("Form: new list\n", .{});
             return .{ .list = val };
+        } else if (V == *Tagged) {
+            return .{ .tagged = val };
         } else if (V == @TypeOf(null)) {
             // This is a bit of 'type punning', but list is our
             // only optional type (in Form), so it's ok.  Or at least, I
@@ -136,6 +134,7 @@ pub const Form = union(enum(u8)) {
                     try writer.writeAll("()");
                 }
             },
+            .tagged => |t| try writer.print("{f}", .{t}),
             .atom => |a| try writer.print("{f}", .{a}),
         }
     }
@@ -166,6 +165,7 @@ pub const Form = union(enum(u8)) {
                 }
                 map.deinit(allocator);
             },
+            .tagged => |tagged| tagged.destroy(allocator),
             .atom => |atom| {
                 atom.destroy(allocator);
             },
@@ -204,6 +204,29 @@ pub const Keyword = struct {
     pub fn new(t: Token, allocator: Allocator) !Keyword {
         assert(t.span[0] == ':');
         return .{ .symbol = try allocator.dupe(u8, t.span[1..]) };
+    }
+};
+
+pub const Tagged = struct {
+    symbol: []const u8,
+    form: Form,
+
+    pub fn new(allocator: Allocator, tag: *const Token, form: *const Form) !*Tagged {
+        const tag_p = try allocator.create(Tagged);
+        errdefer allocator.destroy(tag_p);
+        tag_p.symbol = try allocator.dupe(u8, tag.span[1..]);
+        tag_p.form = form.*;
+        return tag_p;
+    }
+
+    pub fn format(tag: *const Tagged, writer: *std.Io.Writer) !void {
+        try writer.print("#{s} ({f})", .{ tag.symbol, tag.form });
+    }
+
+    pub fn destroy(tag: *Tagged, allocator: Allocator) void {
+        tag.form.deinit(allocator);
+        allocator.free(tag.symbol);
+        allocator.destroy(tag);
     }
 };
 

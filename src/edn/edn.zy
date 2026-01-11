@@ -14,6 +14,7 @@ const Set = types.Set;
 const Form = types.Form;
 const FormCons = types.FormCons;
 const Pair = types.Pair;
+const Tagged = types.Tagged;
 
 const Allocator = std.mem.Allocator;
 
@@ -95,6 +96,9 @@ const zitron_trace_prompt = "-> ";
 %type discard { ?Form }
 %destructor discard { if ($$) |form| form.deinit(allocator); }
 
+%type tagged {Form}
+%destructor tagged { $$.deinit(allocator); }
+
 %type boolean {*Atom}
 %destructor boolean { $$.destroy(allocator); }
 
@@ -106,6 +110,9 @@ const zitron_trace_prompt = "-> ";
 
 %type m_form { Form }
 %destructor m_form { $$.deinit(allocator); }
+
+%type t_form { Form }
+%destructor t_form { $$.deinit(allocator); }
 
 /* Grammar */
 
@@ -123,30 +130,31 @@ form  ::= list.
 
 form(F) ::=  discard(D). @discard_form(F;D)
 
-list(F) ::= PAL l_forms(L) PAR.    @list_form(F;L)
-list(F) ::= PAL PAR.               @empty_list(F)
-map(F) ::= CRL pairs(M) CRR.       @map_form(F;M)
-map(F) ::= CRL CRR.                @empty_map(F)
+list(F) ::= PAL l_forms(L) PAR.     @list_form(F;L)
+list(F) ::= PAL PAR.                @empty_list(F)
+map(F) ::= CRL pairs(M) CRR.        @map_form(F;M)
+map(F) ::= CRL CRR.                 @empty_map(F)
 vector(F)  ::= SQL v_forms(V) SQR.  @vector_form(F;V)
 vector(F)  ::= SQL SQR.             @empty_vector(F)
-set(F) ::= LSET s_forms(S) CRR.    @set_form(F;S)
-set(S) ::= LSET CRR.               @empty_set(S)
-tagged ::= TAGGED form.
-discard(D) ::= DISCARD form(F).    @on_discard(D;F)
+set(F) ::= LSET s_forms(S) CRR.     @set_form(F;S)
+set(S) ::= LSET CRR.                @empty_set(S)
+tagged(F) ::= TAGGED(T) t_form(E).          @tagged_form(F; T, E)
+tagged(F) ::= TAGGED(T) discard t_form(E).  @tagged_form2(F; T, E)
+discard(D) ::= DISCARD form(F).     @on_discard(D;F)
 
 l_forms(L) ::= form(F) l_forms(Cdr).  @list_cons(L; F, Cdr)
 l_forms(L) ::= form(F).               @lforms_form(L;F)
 
 v_forms(V) ::= v_forms(Vlist) form(F).  @vector_build(V; Vlist, F)
-  ``           form(F).                 @vector_init(V;F)
+v_forms(V) ::= form(F).                 @vector_init(V;F)
 
-pairs(M) ::= pair(P) pairs(Mcdr).         @map_build(M; P, Mcdr)
-pairs(M) ::= pair(P).                     @map_init(M;P)
-pair(P)  ::= m_form(K) m_form(V).         @on_pair(P; K, V)
-pair(P) ::= m_form(K) discard m_form(V).  @on_pair2(P; K, V)
-pair(P) ::= discard.                      @discard_in_map(P)
+pairs(M) ::= pairs(Mcdr) pair(P).          @map_build(M; Mcdr, P)
+pairs(M) ::= pair(P).                      @map_init(M;P)
+pair(P)  ::= m_form(K) m_form(V).          @on_pair(P; K, V)
+pair(P)  ::= m_form(K) discard m_form(V).  @on_pair2(P; K, V)
+pair(P)  ::= discard.                      @discard_in_map(P)
 
-s_forms(S) ::= form(F) s_forms(Set). @set_build(S; F, Set)
+s_forms(S) ::= s_forms(Set) form(F). @set_build(S; Set, F)
   ``           form(F).              @set_init(S;F)
 
 m_form ::= list.
@@ -154,6 +162,12 @@ m_form ::= list.
   ``       vector.
   ``       set.
   ``       tagged.
+  ``       atom.
+
+t_form ::= list.
+  ``       map.
+  ``       vector.
+  ``       set.
   ``       atom.
 
 atom(A) ::= SYMBOL(S).      @atom_symbol(A;S)
@@ -167,31 +181,22 @@ atom(A) ::= SYMBOL(S).      @atom_symbol(A;S)
 /* Code Actions */
 
 %impl @discard_form(F;D) {
-    std.debug.print("Discard to form\n", .{});
     F = D;
     // F-overwrites-D
 }
 
 
 %impl @list_form(F;L) {
-    std.debug.print(
-        "\nList build: L {s}, F {s}\n",
-        .{@typeName(@TypeOf(L)), @typeName(@TypeOf(F)),
-    });
     std.debug.print("{?f}\n", .{L});
     F = Form.new(L);
-    // F-overwrites-L
 }
 
 %impl @empty_list(F) {
-    std.debug.print("Empty list\n", .{});
     F = Form.new(null);
 }
 
 %impl @map_form(F;M) {
-    std.debug.print("Map-to-form\n", .{});
     F = Form.new(M);
-    // F-overwrites-M
 }
 
 %impl @empty_map(F) {
@@ -201,7 +206,6 @@ atom(A) ::= SYMBOL(S).      @atom_symbol(A;S)
 }
 
 %impl @vector_form(F;V) {
-    std.debug.print("vector-to-form\n", .{});
     F = Form.new(V);
 }
 
@@ -212,7 +216,6 @@ atom(A) ::= SYMBOL(S).      @atom_symbol(A;S)
 }
 
 %impl @set_form(F;S) {
-    std.debug.print("Set-to-form\n", .{});
     F = Form.new(S);
 }
 
@@ -222,29 +225,33 @@ atom(A) ::= SYMBOL(S).      @atom_symbol(A;S)
     S = Form.new(set);
 }
 
+%impl @tagged_form(F; T, E) {
+    const tag = try Tagged.new(allocator, &T, &E);
+    F = Form.new(tag);
+    // F-overwrites-T
+}
+
+%impl @tagged_form2(F; T, E) {
+    const tag = try Tagged.new(allocator, &T, &E);
+    F = Form.new(tag);
+    // F-overwrites-T
+}
+
 %impl @on_discard(D;F) {
-    std.debug.print("discarding: {?f}\n", .{F});
     if (F) |form| form.deinit(allocator);
     D = null;
 }
 
 %impl @list_cons(L; F, Cdr) {
-    std.debug.print(
-        "List_cons:  {s} cons {s} & {s}\n",
-        .{@typeName(@TypeOf(L)), @typeName(@TypeOf(F)), @typeName(@TypeOf(Cdr))},
-    );
     if (F) |form| {
-        std.debug.print("  Consing form {f}\n", .{form});
         L = try FormCons.create(allocator, form);
         L.?.cons(Cdr);
     } else {
-        std.debug.print("  No cons\n", .{});
         L = Cdr;
     }
 }
 
 %impl @lforms_form(L;F) {
-    std.debug.print("type L: {s} type F {s}\n", .{@typeName(@TypeOf(L)), @typeName(@TypeOf(F))});
     if (F) |form| {
         errdefer form.deinit(allocator);
         L = try FormCons.create(allocator, form);
@@ -254,7 +261,6 @@ atom(A) ::= SYMBOL(S).      @atom_symbol(A;S)
 }
 
 %impl  @vector_build(V; Vlist, F) {
-    std.debug.print("Vector build\n", .{});
     if (F) |form| {
         errdefer form.deinit(allocator);
         try Vlist.append(allocator, form);
@@ -264,7 +270,6 @@ atom(A) ::= SYMBOL(S).      @atom_symbol(A;S)
 }
 
 %impl @vector_init(V;F) {
-    std.debug.print("Vector init\n", .{});
     errdefer if (F) |form| form.deinit(allocator);
     V = try allocator.create(Vector);
     V.* = .empty;
@@ -273,8 +278,7 @@ atom(A) ::= SYMBOL(S).      @atom_symbol(A;S)
     }
 }
 
-%impl @map_build(M; P, Mcdr) {
-    std.debug.print("map build\n", .{});
+%impl @map_build(M; Mcdr, P) {
     if (P) |pair| {
         errdefer pair.destroy(allocator);
         if (try Mcdr.fetchPut(allocator, pair.key, pair.value)) |kv| {
@@ -288,7 +292,6 @@ atom(A) ::= SYMBOL(S).      @atom_symbol(A;S)
 
 %impl @map_init(M;P) {
     errdefer if (P) |pair| pair.destroy(allocator);
-    std.debug.print("init map\n", .{});
     const map = try allocator.create(Map);
     map.* = .empty;
     if (P) |pair| {
@@ -299,23 +302,18 @@ atom(A) ::= SYMBOL(S).      @atom_symbol(A;S)
 }
 
 %impl @on_pair(P; K, V) {
-    std.debug.print("Making a pair: {f} and {f}, into ", .{K, V});
     P = try Pair.create(allocator, K, V);
-    std.debug.print("{f}\n", .{P.?});
 }
 
 %impl @on_pair2(P; K, V) {
-    std.debug.print("Making a pair (after a middle discard): {f} and {f}, into ", .{K, V});
     P = try Pair.create(allocator, K, V);
-    std.debug.print("{f}\n", .{P.?});
 }
 
 %impl @discard_in_map(P) {
-    std.debug.print("Discard in map\n", .{});
     P = null;
 }
 
-%impl @set_build(S; F, Set) {
+%impl @set_build(S; Set, F) {
     if (F) |form| {
         errdefer form.deinit(allocator);
         if (try Set.fetchPut(allocator, form, {})) |entry| {
@@ -338,37 +336,31 @@ atom(A) ::= SYMBOL(S).      @atom_symbol(A;S)
 %impl @atom_symbol(A; S) {
     const atom = try Atom.new(S, allocator);
     A = Form.new(atom);
-    std.debug.print("Symbol: {f}\n", .{A});
 }
 
 %impl @atom_number(A; N) {
     const atom = try Atom.new(N, allocator);
     A = Form.new(atom);
-    std.debug.print("Number: {f}\n", .{A});
 }
 
 %impl @atom_string(A; S) {
     const atom = try Atom.new(S, allocator);
     A = Form.new(atom);
-    std.debug.print("String: {f}\n", .{A});
 }
 
 %impl @atom_keyword(A; K) {
     const atom = try Atom.new(K, allocator);
     A = Form.new(atom);
-    std.debug.print("Keyword: {f}\n", .{A});
 }
 
 %impl @atom_nil(A; N) {
     const atom = try Atom.new(N, allocator);
     A = Form.new(atom);
-    std.debug.print("nil: {f}\n", .{A});
 }
 
 %impl @atom_boolean(A; B) {
     const atom = try Atom.new(B, allocator);
     A = Form.new(atom);
-    std.debug.print("boolean: {f}\n", .{A});
 }
 
 %code {
@@ -392,16 +384,15 @@ test "parse list" {
     \\(foo bar baz () #_12 true
     \\   (quux #_:crux :quuux "quuuux")
     \\   {k1 #_toss :v1, #_toss k2 "v2" #_toss} {}
-    \\   #{ :moe, "curly" larry #_shemp }
+    \\   #{ :moe, "curly" larry #_shemp } #{}
     \\   [2 4 6.0 :eight] []
+    \\   #tag/thing #_:bye :thing #tag_1 12e7
     \\   nil)
     );
     while (try tok.next()) |t| {
         try parser.parse(t.kind, t);
     } else {
-        std.debug.print("finalizing\n", .{});
         try parser.finalize();
-        std.debug.print("final\n",.{});
     }
 }
 

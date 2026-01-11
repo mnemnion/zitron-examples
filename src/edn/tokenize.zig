@@ -108,6 +108,7 @@ pub const Tokenizer = struct {
                 t.idx += 1;
                 while (symbolFollow(t.text[t.idx])) : (t.idx += 1) {}
                 if (t.text[t.idx] == '/') {
+                    t.idx += 1;
                     while (symbolFollow(t.text[t.idx])) : (t.idx += 1) {}
                     if (t.text[t.idx] == '/') return error.BadToken;
                 }
@@ -143,13 +144,13 @@ pub const Tokenizer = struct {
                     const frac_start = t.idx;
                     while ('0' <= t.text[t.idx] and t.text[t.idx] <= '9') : (t.idx += 1) {}
                     if (frac_start == t.idx) return error.BadToken;
-                    if (t.text[t.idx] == 'e' or t.text[t.idx] == 'E') {
-                        t.idx += 1;
-                        if (t.text[t.idx] == '+' or t.text[t.idx] == '-') t.idx += 1;
-                        const exp_start = t.idx;
-                        while ('0' <= t.text[t.idx] and t.text[t.idx] <= '9') : (t.idx += 1) {}
-                        if (exp_start == t.idx) return error.BadToken;
-                    }
+                }
+                if (t.text[t.idx] == 'e' or t.text[t.idx] == 'E') {
+                    t.idx += 1;
+                    if (t.text[t.idx] == '+' or t.text[t.idx] == '-') t.idx += 1;
+                    const exp_start = t.idx;
+                    while ('0' <= t.text[t.idx] and t.text[t.idx] <= '9') : (t.idx += 1) {}
+                    if (exp_start == t.idx) return error.BadToken;
                 } // Absolutely not clear how 10NM should be parsed. Let's go with: 10N M. ¯\_(ツ)_/¯
                 if (t.text[t.idx] == 'M' and !saw_n) t.idx += 1;
                 return Tok(.NUMBER, t.text[start..t.idx], t.line);
@@ -208,6 +209,7 @@ pub const Tokenizer = struct {
             ':',
             '#',
             '-',
+            '_',
             '\'', // https://github.com/edn-format/edn/pull/89 (?)
             '?',
             '$',
