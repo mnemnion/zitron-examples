@@ -220,7 +220,7 @@ pub const Tagged = struct {
     }
 
     pub fn format(tag: *const Tagged, writer: *std.Io.Writer) !void {
-        try writer.print("#{s} ({f})", .{ tag.symbol, tag.form });
+        try writer.print("«#{s} {f}»", .{ tag.symbol, tag.form });
     }
 
     pub fn destroy(tag: *Tagged, allocator: Allocator) void {

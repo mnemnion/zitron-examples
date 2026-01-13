@@ -138,20 +138,21 @@ pub fn build(b: *std.Build) void {
         .name = "ztap-run",
         .root_module = edn_mod,
         .filters = test_filters,
-        // With the provided test runner:
         .test_runner = .{ .path = ztap_dep.namedLazyPath("runner"), .mode = .simple },
-        // Or you can use your own:
-        // .test_runner = .{ .path = b.path("src/ztap_custom_runner.zig"), .mode = .simple },
     });
     edn_unit_tests.root_module.addImport("ztap", ztap_dep.module("ztap"));
 
-    // To put the runner in zig-out etc.
+    if (b.lazyDependency("ohsnap", .{
+        .target = target,
+        .optimize = optimize,
+    })) |ohsnap_dep| {
+        edn_unit_tests.root_module.addImport("ohsnap", ohsnap_dep.module("ohsnap"));
+    }
     b.installArtifact(edn_unit_tests);
 
     const run_edn_tests = b.addRunArtifact(edn_unit_tests);
 
-    // To always run tests, even if nothing changed, add this:
-    // run_ztap_tests.has_side_effects = true;
+    run_edn_tests.has_side_effects = true;
 
     // TAP producers write to stdout.
     //
