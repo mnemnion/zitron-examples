@@ -15,13 +15,26 @@ const Form = types.Form;
 const FormCons = types.FormCons;
 const Pair = types.Pair;
 const Tagged = types.Tagged;
+const Forms = std.ArrayList(Form);
 
 const Allocator = std.mem.Allocator;
 
 // TODO: use or delete
 const ParseContext = struct {
-    lists: std.mem.MemoryPool(FormCons),
+    forms: []Form,
 
+    pub fn format(pc: *const ParseContext, writer: *std.Io.Writer) !void {
+        for (pc.forms) |form| {
+            try writer.print("{f}\n", .{form});
+        }
+    }
+
+    pub fn deinit(pc: *ParseContext, allocator: Allocator) void {
+        for (pc.forms) |form| {
+            form.deinit(allocator);
+        }
+        allocator.free(pc.forms);
+    }
 };
 
 fn freeSet(set: *Set, allocator: Allocator) void {
@@ -58,9 +71,19 @@ const zitron_trace_prompt = "-> ";
 
 /* Types */
 
+%extra_context { result: ParseContext }
+
 %token_type Token
 
-%token CHARACTER. // TODO: shim, remove
+%type edn {[]Form}
+%destructor edn { for ($$) |form| form.deinit(allocator); }
+
+%type forms {*Forms}
+%destructor forms {
+    for ($$.items) |form| form.deinit(allocator);
+    $$.deinit(allocator);
+    allocator.destroy($$);
+}
 
 %type form {?Form}
 %destructor form { if ($$) |form| form.deinit(allocator); }
@@ -108,39 +131,38 @@ const zitron_trace_prompt = "-> ";
 %type pairs {*Map}
 %destructor pairs { freeMap($$, allocator); }
 
-%type m_form { Form }
+%type m_form {Form}
 %destructor m_form { $$.deinit(allocator); }
 
-%type t_form { Form }
+%type t_form {Form}
 %destructor t_form { $$.deinit(allocator); }
 
 /* Grammar */
 
-edn ::= forms.
+edn(E) ::= forms(Fs).  @edn_forms(E;Fs)
 
-forms ::= form forms.
-forms ::= form.
+forms(Fs) ::= forms(Fs) form(F).  @forms_append(Fs; Fs, F)
+forms(Fs) ::= form(F).            @forms_new(Fs;F)
 
-form  ::= list.
-  ``      map.
-  ``      vector.
-  ``      set.
-  ``      tagged.
-  ``      atom.
+form(F) ::= list(L).     @f_list(F;L)
+  ``        map(M).      @f_map(F;M)
+  ``        vector(V).   @f_vector(F;V)
+  ``        set(S).      @f_set(F;S)
+  ``        tagged(T).   @f_tagged(F;T)
+  ``        atom(A).     @f_atom(F;A)
+  ``        discard(D).  @discard_form(F;D)
 
-form(F) ::=  discard(D). @discard_form(F;D)
-
-list(F) ::= PAL l_forms(L) PAR.     @list_form(F;L)
-list(F) ::= PAL PAR.                @empty_list(F)
-map(F) ::= CRL pairs(M) CRR.        @map_form(F;M)
-map(F) ::= CRL CRR.                 @empty_map(F)
-vector(F)  ::= SQL v_forms(V) SQR.  @vector_form(F;V)
-vector(F)  ::= SQL SQR.             @empty_vector(F)
-set(F) ::= LSET s_forms(S) CRR.     @set_form(F;S)
-set(S) ::= LSET CRR.                @empty_set(S)
+list(F) ::= PAL l_forms(L) PAR.             @list_form(F;L)
+list(F) ::= PAL PAR.                        @empty_list(F)
+map(F) ::= CRL pairs(M) CRR.                @map_form(F;M)
+map(F) ::= CRL CRR.                         @empty_map(F)
+vector(F)  ::= SQL v_forms(V) SQR.          @vector_form(F;V)
+vector(F)  ::= SQL SQR.                     @empty_vector(F)
+set(F) ::= LSET s_forms(S) CRR.             @set_form(F;S)
+set(S) ::= LSET CRR.                        @empty_set(S)
 tagged(F) ::= TAGGED(T) t_form(E).          @tagged_form(F; T, E)
 tagged(F) ::= TAGGED(T) discard t_form(E).  @tagged_form2(F; T, E)
-discard(D) ::= DISCARD form(F).     @on_discard(D;F)
+discard(D) ::= DISCARD form(F).             @on_discard(D;F)
 
 l_forms(L) ::= form(F) l_forms(Cdr).  @list_cons(L; F, Cdr)
 l_forms(L) ::= form(F).               @lforms_form(L;F)
@@ -157,37 +179,83 @@ pair(P)  ::= discard.                      @discard_in_map(P)
 s_forms(S) ::= s_forms(Set) form(F). @set_build(S; Set, F)
   ``           form(F).              @set_init(S;F)
 
-m_form ::= list.
-  ``       map.
-  ``       vector.
-  ``       set.
-  ``       tagged.
-  ``       atom.
+m_form(F) ::= list(F).
+  ``          map(F).
+  ``          vector(F).
+  ``          set(F).
+  ``          tagged(F).
+  ``          atom(F).
 
-t_form ::= list.
-  ``       map.
-  ``       vector.
-  ``       set.
-  ``       atom.
+t_form(F) ::= list(F).
+  ``          map(F).
+  ``          vector(F).
+  ``          set(F).
+  ``          atom(F).
 
 atom(A) ::= SYMBOL(S).      @atom_symbol(A;S)
  ``         NUMBER(N).      @atom_number(A;N)
  ``         STRING(S).      @atom_string(A;S)
  ``         KEYWORD(K).     @atom_keyword(A;K)
- // ``      CHARACTER(C).   @atom_character(A;C)
+ ``         CHARACTER(C).   @atom_character(A;C)
  ``         NIL(N).         @atom_nil(A;N)
  ``         TRUE|FALSE(B).  @atom_boolean(A;B)
 
 /* Code Actions */
 
+%impl @edn_forms(E;Fs) {
+    E = try Fs.toOwnedSlice(allocator);
+    result.forms = E;
+    Fs.deinit(allocator);
+    allocator.destroy(Fs);
+}
+
+%impl @forms_append(Fs; Fs, F) {
+    if (F) |form| {
+        errdefer form.deinit(allocator);
+        try Fs.append(allocator, form);
+    }
+}
+
+%impl @forms_new(Fs; F) {
+    errdefer if (F) |form| form.deinit(allocator);
+    var forms: *Forms = try allocator.create(Forms);
+    forms.* = .empty;
+    if (F) |form| {
+        try forms.append(allocator, form);
+    }
+    Fs = forms;
+}
+
+%impl @f_list(F;L) {
+    F = L; // F-overwrites-L
+}
+
+%impl @f_map(F;M)  {
+    F = M; // F-overwrites-M
+}
+
+%impl @f_vector(F;V)  {
+    F = V; // F-overwrites-V
+}
+
+%impl @f_set(F;S)  {
+    F = S; // F-overwrites-S
+}
+
+%impl @f_tagged(F;T)  {
+    F = T; // F-overwrites-T
+}
+
+%impl @f_atom(F;A) {
+    F = A; // F-overwrites-A
+}
+
 %impl @discard_form(F;D) {
-    F = D;
-    // F-overwrites-D
+    F = D; // F-overwrites-D
 }
 
 
 %impl @list_form(F;L) {
-    std.debug.print("{?f}\n", .{L});
     F = Form.new(L);
 }
 
@@ -333,23 +401,28 @@ atom(A) ::= SYMBOL(S).      @atom_symbol(A;S)
     S = set;
 }
 
-%impl @atom_symbol(A; S) {
+%impl @atom_symbol(A;S) {
     const atom = try Atom.new(S, allocator);
     A = Form.new(atom);
 }
 
-%impl @atom_number(A; N) {
+%impl @atom_number(A;N) {
     const atom = try Atom.new(N, allocator);
     A = Form.new(atom);
 }
 
-%impl @atom_string(A; S) {
+%impl @atom_string(A;S) {
     const atom = try Atom.new(S, allocator);
     A = Form.new(atom);
 }
 
-%impl @atom_keyword(A; K) {
+%impl @atom_keyword(A;K) {
     const atom = try Atom.new(K, allocator);
+    A = Form.new(atom);
+}
+
+%impl @atom_character(A;C) {
+    const atom = try Atom.new(C, allocator);
     A = Form.new(atom);
 }
 
@@ -358,14 +431,14 @@ atom(A) ::= SYMBOL(S).      @atom_symbol(A;S)
     A = Form.new(atom);
 }
 
-%impl @atom_boolean(A; B) {
+%impl @atom_boolean(A;B) {
     const atom = try Atom.new(B, allocator);
     A = Form.new(atom);
 }
 
 %code {
 
-const zitron_no_error_recovery = true;
+// const zitron_no_error_recovery = true;
 
 test "parse list" {
 
@@ -375,25 +448,29 @@ test "parse list" {
     trace_me = &stderr_writer.interface;
 %endif
     // Hmm
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-    var parser = try Parser.create(allocator);
+    // var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    // defer arena.deinit();
+    // const allocator = arena.allocator();
+    const allocator = std.testing.allocator;
+    const result: ParseContext = undefined;
+    var parser = try Parser.create(allocator, result);
     defer parser.destroy();
+    defer parser.result.deinit(allocator);
     var tok = Tokenizer.init(
-    \\(foo bar baz () #_12 true
+    \\   (foo bar baz () #_12 true)
     \\   (quux #_:crux :quuux "quuuux")
     \\   {k1 #_toss :v1, #_toss k2 "v2" #_toss} {}
     \\   #{ :moe, "curly" larry #_shemp } #{}
     \\   [2 4 6.0 :eight] []
     \\   #tag/thing #_:bye :thing #tag_1 12e7
-    \\   nil)
+    \\   nil
     );
     while (try tok.next()) |t| {
         try parser.parse(t.kind, t);
     } else {
         try parser.finalize();
     }
+    std.debug.print("{f}", .{parser.result});
 }
 
 }

@@ -18,7 +18,7 @@ pub const Atom = union(enum(u8)) {
             .FALSE => new_atom.* = .{ .boolean = false },
             .NUMBER => new_atom.* = .{ .number = std.fmt.parseFloat(f64, t.span) catch unreachable },
             .NIL => new_atom.* = .nil,
-            .SYMBOL => new_atom.* = .{ .symbol = t.span },
+            .SYMBOL => new_atom.* = .{ .symbol = try allocator.dupe(u8, t.span) },
             .CHARACTER => new_atom.* = char: {
                 break :char .nil; // TODO:
             },
@@ -94,10 +94,6 @@ pub const Form = union(enum(u8)) {
         } else @compileError("Cannot make a Form from a " ++ @typeName(V) ++ ".");
     }
 
-    pub fn deinit(form: Form, allocator: Allocator) void {
-        _ = .{ form, allocator };
-    }
-
     pub fn format(form: Form, writer: *std.Io.Writer) !void {
         switch (form) {
             .nil => try writer.writeAll("∅"),
@@ -139,16 +135,17 @@ pub const Form = union(enum(u8)) {
         }
     }
 
-    pub fn deinit1(form: Form, allocator: Allocator) void {
+    pub fn deinit(form: Form, allocator: Allocator) void {
         switch (form) {
             .vector => |alist| {
                 for (alist.items) |f| {
                     f.deinit(allocator);
                 }
                 alist.deinit(allocator);
+                allocator.destroy(alist);
             },
-            .list => |car| {
-                car.deinit(allocator);
+            .list => |m_car| {
+                if (m_car) |car| car.deinit(allocator);
             },
             .set => |s| {
                 var key_iter = s.keyIterator();
@@ -156,6 +153,7 @@ pub const Form = union(enum(u8)) {
                     elem.deinit(allocator);
                 }
                 s.deinit(allocator);
+                allocator.destroy(s);
             },
             .map => |map| {
                 var iter = map.iterator();
@@ -164,11 +162,13 @@ pub const Form = union(enum(u8)) {
                     pair.value_ptr.deinit(allocator);
                 }
                 map.deinit(allocator);
+                allocator.destroy(map);
             },
             .tagged => |tagged| tagged.destroy(allocator),
             .atom => |atom| {
                 atom.destroy(allocator);
             },
+            .nil => {},
         }
     }
 };
