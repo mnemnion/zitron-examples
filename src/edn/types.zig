@@ -58,8 +58,8 @@ pub const Atom = union(enum(u8)) {
 pub const AtomKind = std.meta.Tag(Atom);
 pub const FormKind = std.meta.Tag(Form);
 
-pub const Set = std.AutoHashMapUnmanaged(Form, void);
-pub const Map = std.AutoHashMapUnmanaged(Form, Form);
+pub const Set = std.ArrayHashMapUnmanaged(Form, void, Context, true);
+pub const Map = std.ArrayHashMapUnmanaged(Form, Form, Context, true);
 pub const Vector = std.ArrayList(Form);
 pub const List = std.ArrayList(Form);
 
@@ -99,8 +99,8 @@ pub const Form = union(enum(u8)) {
             .nil => try writer.writeAll("∅"),
             .set => |set| {
                 try writer.writeAll("#{");
-                var key_iter = set.keyIterator();
-                while (key_iter.next()) |key| {
+                const keys = set.keys();
+                for (keys) |key| {
                     try writer.print(" {f}", .{key});
                 }
                 try writer.writeAll(" }");
@@ -147,13 +147,13 @@ pub const Form = union(enum(u8)) {
             .list => |m_car| {
                 if (m_car) |car| car.deinit(allocator);
             },
-            .set => |s| {
-                var key_iter = s.keyIterator();
-                while (key_iter.next()) |elem| {
+            .set => |set| {
+                const elems = set.keys();
+                for (elems) |elem| {
                     elem.deinit(allocator);
                 }
-                s.deinit(allocator);
-                allocator.destroy(s);
+                set.deinit(allocator);
+                allocator.destroy(set);
             },
             .map => |map| {
                 var iter = map.iterator();
@@ -281,6 +281,175 @@ pub const FormCons = struct {
             }
         }
         return car;
+    }
+};
+
+//| Hash context
+//|
+//| Note that this does not in fact provide edn-equivalent hash equality.  This
+//| version considers #{:foo :baz :bar} to be different from #{:foo :bar: baz},
+//| which is wrong.  Ultimately this is simply using the wrong data structure.
+//|
+//| Important note: this **only works** because a parser is unable to generate
+//| cycles.  Any subsequent mutation of these structures which creates a cycle
+//| **will** stack overflow.
+//|
+//| Note that this _could_ be fixed.  Every pointer in the collection is either
+//| a string-slice, and those can't have cycles, or is word-aligned.  So the
+//| physical pointer could be mutated, by setting the bit to 1, then followed
+//| in its original state.  Each pointer encountered must then be checked for
+//| this condition, and if it is in that condition, either hash or take equality
+//| of the pointer itself.  Of course deferring a re-mutation of every followed
+//| pointer to its original state.
+//|
+//| As it stands I have very little interest in doing this.  "Works on my machine".
+
+const equal = struct {
+    const activeTag = std.meta.activeTag;
+
+    pub fn form(f1: *const Form, f2: *const Form) bool {
+        if (activeTag(f1.*) != activeTag(f2.*)) return false;
+        return switch (f1.*) {
+            .nil => true,
+            .atom => |f1a| equal.atom(f1a, f2.atom),
+            .set => |f1s| equal.set(f1s, f2.set),
+            .map => |f1m| equal.map(f1m, f2.map),
+            .vector => |f1v| equal.vector(f1v, f2.vector),
+            .list => |f1l| equal.list(f1l, f2.list),
+            .tagged => |f1tag| equal.tagged(f1tag, f2.tagged),
+        };
+    }
+
+    pub fn atom(a1: *const Atom, a2: *const Atom) bool {
+        if (activeTag(a1.*) != activeTag(a2.*)) return false;
+        return switch (a1.*) {
+            .nil => true,
+            inline .boolean, .number, .character => |lit, tag| lit == @field(a2.*, @tagName(tag)),
+            inline .string, .symbol => |slice, tag| std.mem.eql(u8, slice, @field(a2.*, @tagName(tag))),
+            .keyword => |key| std.mem.eql(u8, key.symbol, a2.keyword.symbol),
+        };
+    }
+
+    pub fn list(l1: ?*const FormCons, l2: ?*const FormCons) bool {
+        var m_l1 = l1;
+        var m_l2 = l2;
+        while (m_l1) |list1| : (m_l1 = list1.next) {
+            if (m_l2) |list2| {
+                if (!equal.form(&list1.form, &list2.form)) return false;
+                m_l2 = list2.next;
+            } else return false;
+        } else return true;
+    }
+
+    pub fn set(s1: *const Set, s2: *const Set) bool {
+        if (s1.count() != s2.count()) return false;
+        const s1k = s1.keys();
+        const s2k = s2.keys();
+        for (s1k, s2k) |*f1, *f2| {
+            if (!equal.form(f1, f2)) return false;
+        }
+        return true;
+    }
+
+    pub fn map(m1: *const Map, m2: *const Map) bool {
+        if (m1.count() != m2.count()) return false;
+        const m1k = m1.keys();
+        const m1v = m1.values();
+        const m2k = m2.keys();
+        const m2v = m2.values();
+        for (m1k, m2k, m1v, m2v) |*k1, *k2, *v1, *v2| {
+            if (!equal.form(k1, k2)) return false;
+            if (!equal.form(v1, v2)) return false;
+        }
+        return true;
+    }
+
+    pub fn vector(v1: *const Vector, v2: *const Vector) bool {
+        const v1s = v1.items;
+        const v2s = v2.items;
+        if (v1s.len != v2s.len) return false;
+        for (v1s, v2s) |*f1, *f2| {
+            if (!equal.form(f1, f2)) return false;
+        }
+        return true;
+    }
+
+    pub fn tagged(t1: *const Tagged, t2: *const Tagged) bool {
+        if (!std.mem.eql(u8, t1.symbol, t2.symbol)) return false;
+        return equal.form(&t1.form, &t2.form);
+    }
+};
+
+const Hash = struct {
+    pub fn form(hasher: anytype, a_form: *const Form) void {
+        const b = @intFromEnum(std.meta.activeTag(a_form.*));
+        hasher.update(&.{b});
+        switch (a_form.*) {
+            .nil => {},
+            .atom => |f1a| Hash.atom(hasher, f1a),
+            .set => |f1s| Hash.set(hasher, f1s),
+            .map => |f1m| Hash.map(hasher, f1m),
+            .vector => |f1v| Hash.vector(hasher, f1v),
+            .list => |f1l| Hash.list(hasher, f1l),
+            .tagged => |f1tag| Hash.tagged(hasher, f1tag),
+        }
+    }
+
+    pub fn atom(hasher: anytype, an_atom: *const Atom) void {
+        const b = @intFromEnum(std.meta.activeTag(an_atom.*));
+        hasher.update(&.{b});
+        switch (an_atom.*) {
+            .nil => {},
+            inline .number, .character, .boolean => |v| hasher.update(std.mem.asBytes(&v)),
+            inline .string, .symbol => |slice| hasher.update(slice),
+            .keyword => |key| hasher.update(key.symbol),
+        }
+    }
+
+    pub fn list(hasher: anytype, a_list: ?*const FormCons) void {
+        var m_l1 = a_list;
+        while (m_l1) |list1| : (m_l1 = list1.next) {
+            Hash.form(hasher, &list1.form);
+        }
+    }
+
+    pub fn set(hasher: anytype, a_set: *const Set) void {
+        const set_keys = a_set.keys();
+        for (set_keys) |*elem| {
+            Hash.form(hasher, elem);
+        }
+    }
+
+    pub fn map(hasher: anytype, a_map: *const Map) void {
+        const m1k = a_map.keys();
+        const m1v = a_map.values();
+        for (m1k, m1v) |*key, *val| {
+            Hash.form(hasher, key);
+            Hash.form(hasher, val);
+        }
+    }
+
+    pub fn vector(hasher: anytype, a_vector: *const Vector) void {
+        for (a_vector.items) |*f| {
+            Hash.form(hasher, f);
+        }
+    }
+
+    pub fn tagged(hasher: anytype, a_tagged: *const Tagged) void {
+        hasher.update(a_tagged.symbol);
+        Hash.form(hasher, &a_tagged.form);
+    }
+};
+
+const Context = struct {
+    pub fn eql(_: Context, f1: Form, f2: Form, _: usize) bool {
+        return equal.form(&f1, &f2);
+    }
+
+    pub fn hash(_: Context, form: Form) u32 {
+        var hasher = std.hash.Wyhash.init(0);
+        Hash.form(&hasher, &form);
+        return @truncate(hasher.final());
     }
 };
 
