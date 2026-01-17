@@ -19,9 +19,7 @@ pub const Atom = union(enum(u8)) {
             .NUMBER => new_atom.* = .{ .number = std.fmt.parseFloat(f64, t.span) catch unreachable },
             .NIL => new_atom.* = .nil,
             .SYMBOL => new_atom.* = .{ .symbol = try allocator.dupe(u8, t.span) },
-            .CHARACTER => new_atom.* = char: {
-                break :char .nil; // TODO:
-            },
+            .CHARACTER => new_atom.* = .{ .character = try parseCharacter(t.span) },
             .KEYWORD => new_atom.* = .{ .keyword = try Keyword.new(t, allocator) },
             // TODO: escapes and such
             .STRING => {
@@ -50,10 +48,51 @@ pub const Atom = union(enum(u8)) {
             .string => |s| try writer.print("\"{s}\"", .{s}),
             .nil => try writer.writeAll("∅"),
             .boolean => |b| try writer.print("`{any}`", .{b}),
-            else => try writer.writeAll("more atoms"),
+            .character => |c| {
+                switch (c) {
+                    '\t' => try writer.writeAll("'\\t'"),
+                    '\n' => try writer.writeAll("'\\n'"),
+                    '\r' => try writer.writeAll("'\\r'"),
+                    else => try writer.print("'{u}'", .{c}),
+                }
+            },
+        }
+    }
+
+    fn parseCharacter(span: []const u8) !u21 {
+        assert(span[0] == '\\');
+        assert(span.len >= 2);
+        const s1 = span[1..];
+        if (s1.len == 1) return s1[0];
+        switch (s1[0]) {
+            't', 's', 'n', 'r' => {
+                if (char_words.get(s1)) |u| {
+                    return u;
+                } // s1.len == 1 handles the simple case
+                return error.CharacterParseError;
+            },
+            'u' => {
+                // Java-style: \uNNNN
+                if (s1.len != 5) return error.CharacterParseError;
+                for (1..5) |i| {
+                    if (!std.ascii.isHex(s1[i])) return error.CharacterParseError;
+                }
+                return std.fmt.parseInt(u21, s1[1..], 16);
+            },
+            else => {
+                // UTF-8 codepoint, hopefully.
+                return std.unicode.utf8Decode(s1) catch return error.CharacterParseError;
+            },
         }
     }
 };
+
+const char_words = std.StaticStringMap(u21).initComptime(.{
+    .{ "tab", '\t' },
+    .{ "space", ' ' },
+    .{ "newline", '\n' },
+    .{ "return", '\r' },
+});
 
 pub const AtomKind = std.meta.Tag(Atom);
 pub const FormKind = std.meta.Tag(Form);

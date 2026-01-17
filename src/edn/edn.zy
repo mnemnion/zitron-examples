@@ -479,6 +479,17 @@ test "map" {
     try snapTest(map_atoms, map_str);
 }
 
+test "char" {
+    const oh: OhSnap = .{};
+    const char_atoms = oh.snap(@src(),
+        \\(%, '\t', '∅', 'ሴ', '\n', '\')
+        \\
+        ,);
+    const char_str =  \\(% \tab \∅ \u1234 \newline \\)
+    ;
+    try snapTest(char_atoms, char_str);
+}
+
 test "parse list" {
     if (true) return;
 %ifdef TRACE
