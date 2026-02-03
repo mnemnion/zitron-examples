@@ -104,6 +104,7 @@ pub fn build(b: *std.Build) void {
 
     edn_run.setCwd(edn_input_dir);
     edn_run.addArg("-q"); // Not-quiet for now
+    edn_run.addArg("-S"); // SQL
     edn_run.addArg("--clean-exit");
     edn_run.addArg("edn.zy");
     edn_run.step.dependOn(&edn_write_in.step);
@@ -121,6 +122,8 @@ pub fn build(b: *std.Build) void {
     edn_tokens_install.step.dependOn(&edn_write_out.step);
     const edn_out_install = b.addInstallFile(edn_rootdir.path(b, "edn.out"), "edn/edn.out");
     edn_out_install.step.dependOn(&edn_write_out.step);
+    const edn_sql_install = b.addInstallFile(edn_rootdir.path(b, "edn.sql"), "edn/edn.sql");
+    edn_sql_install.step.dependOn(&edn_write_out.step);
 
     const edn_mod = b.addModule("edn_parser", .{
         .root_source_file = edn_rootdir.path(b, "edn.zig"),
@@ -172,6 +175,7 @@ pub fn build(b: *std.Build) void {
     grammars_step.dependOn(&edn_grammar_install.step);
     grammars_step.dependOn(&edn_tokens_install.step);
     grammars_step.dependOn(&edn_out_install.step);
+    grammars_step.dependOn(&edn_sql_install.step);
 
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_calc_unit_tests.step);

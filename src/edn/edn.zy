@@ -1,6 +1,5 @@
-//! Parser for EDN notation
-
 %include {
+//! Parser for EDN notation
 const tokenize = @import("tokenize.zig");
 const Token = tokenize.Token;
 const Tokenizer = tokenize.Tokenizer;
@@ -220,6 +219,7 @@ atom(A) ::= SYMBOL(S).      @atom_symbol(A;S)
     errdefer if (F) |form| form.deinit(allocator);
     var forms: *Forms = try allocator.create(Forms);
     forms.* = .empty;
+    errdefer allocator.destroy(forms);
     if (F) |form| {
         try forms.append(allocator, form);
     }
