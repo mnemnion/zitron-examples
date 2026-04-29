@@ -2,23 +2,24 @@
 .{
     .name = .zitron_examples,
 
-    .version = "0.0.1",
+    .version = "0.0.2",
 
-    .minimum_zig_version = "0.14.0",
+    .minimum_zig_version = "0.16.0",
 
     .fingerprint = 0x992c77fb6e870f1c,
 
     .dependencies = .{
-        .zitron = .{
-            .path = "../zitron/",
-        },
         .ztap = .{
-            .path = "../ztap/",
+            .url = "https://github.com/mnemnion/ztap/archive/refs/tags/v0.9.6.tar.gz",
+            .hash = "ztap-0.9.6-2runTcJZAAAGbmsi7tkHaVGweQCg2LncF_LSsAnvAMvs",
         },
         .ohsnap = .{
-            // .url = "https://github.com/mnemnion/ohsnap/archive/refs/tags/v0.4.2.tar.gz",
-            // .hash = "ohsnap-0.4.2-iWxzyiGcAAAbUPJG3B6agP55LfeqGbtTOQ4PcgSGUb9-",
-            .path = "../ohsnap/",
+            .url = "https://github.com/mnemnion/ohsnap/archive/refs/tags/v0.5.0.tar.gz",
+            .hash = "ohsnap-0.5.0-iWxzymOpAABdbfwHCH-ZMY_KPRyQNi2X9MiJHr6OpFJp",
+        },
+        .zitron = .{
+            .url = "https://github.com/mnemnion/zitron/archive/refs/tags/v0.2.0.tar.gz",
+            .hash = "zitron-0.2.0--jF1ZrMXEQDGgtROsWKw12wnIfai_vEvfrH_2P3h05hl",
         },
     },
 

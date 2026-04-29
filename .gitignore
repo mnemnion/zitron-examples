@@ -2,3 +2,4 @@
 src/gamelog/TokenKind.zig
 .zig-cache/
 zig-out/
+zig-pkg/

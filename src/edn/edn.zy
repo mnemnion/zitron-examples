@@ -438,9 +438,10 @@ atom(A) ::= SYMBOL(S).      @atom_symbol(A;S)
 
 %code {
 
-const OhSnap = @import("ohsnap");
+const ohsnap = @import("ohsnap");
+const OhSnap = ohsnap.OhSnap(ohsnap.default_pretty_options);
 
-fn snapTest(snap: OhSnap.Snap, string: [:0]const u8) !void {
+fn snapTest(snap: anytype, string: [:0]const u8) !void {
     const allocator = std.testing.allocator;
     const result: ParseContext = undefined;
     var parser = try Parser.create(allocator, result);
@@ -456,7 +457,7 @@ fn snapTest(snap: OhSnap.Snap, string: [:0]const u8) !void {
 }
 
 test "List atoms" {
-    const oh: OhSnap = .{};
+    const oh = OhSnap;
     const list_atoms = oh.snap(@src(),
         \\(foo, :bar, "baz", 12, 4.2)
         \\
@@ -468,7 +469,7 @@ test "List atoms" {
 }
 
 test "map" {
-    const oh: OhSnap = .{};
+    const oh = OhSnap;
     const map_atoms = oh.snap(@src(),
         \\{ foo :bar  "baz" 12  4.2 [yo yoo yo] }
         \\
@@ -480,7 +481,7 @@ test "map" {
 }
 
 test "char" {
-    const oh: OhSnap = .{};
+    const oh = OhSnap;
     const char_atoms = oh.snap(@src(),
         \\(%, '\t', '∅', 'ሴ', '\n', '\')
         \\
