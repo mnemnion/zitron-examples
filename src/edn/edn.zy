@@ -18,7 +18,7 @@ const Forms = std.ArrayList(Form);
 
 const Allocator = std.mem.Allocator;
 
-// TODO: use or delete
+/// Collects the forms at the end of the parse.
 const ParseContext = struct {
     forms: []Form,
 
@@ -426,7 +426,7 @@ atom(A) ::= SYMBOL(S).      @atom_symbol(A;S)
     A = Form.new(atom);
 }
 
-%impl @atom_nil(A; N) {
+%impl @atom_nil(A;N) {
     const atom = try Atom.new(N, allocator);
     A = Form.new(atom);
 }

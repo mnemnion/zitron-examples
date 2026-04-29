@@ -1,0 +1,30 @@
+%include {
+//! A Parser for PEG syntax
+
+const Tokenizer = @import("tokenizer.zig").Tokenizer;
+
+}
+
+%left ALT.
+%left CAT.
+
+peg ::= pattern.
+peg ::= rules.
+
+rules ::= rules rule.
+rules ::= rule.
+
+rule ::= ID ARROW pattern.
+
+pattern ::= pattern ALT pattern.
+  ``        element pattern. [CAT]
+
+element ::= ID.
+  ``        D_STRING.
+  ``        S_STRING.
+  ``        AND element.
+  ``        NOT element.
+  ``        element STAR.
+  ``        element PLUS.
+  ``        PEL element PER.
+  ``        element POW INT.

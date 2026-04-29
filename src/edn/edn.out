@@ -1,0 +1,892 @@
+State 0:
+          edn ::= * forms
+          forms ::= * forms form
+          forms ::= * form
+          form ::= * list
+          form ::= * map
+          form ::= * vector
+          form ::= * set
+          form ::= * tagged
+          form ::= * atom
+          form ::= * discard
+          list ::= * PAL l_forms PAR
+          list ::= * PAL PAR
+          map ::= * CRL pairs CRR
+          map ::= * CRL CRR
+          vector ::= * SQL v_forms SQR
+          vector ::= * SQL SQR
+          set ::= * LSET s_forms CRR
+          set ::= * LSET CRR
+          tagged ::= * TAGGED t_form
+          tagged ::= * TAGGED discard t_form
+          discard ::= * DISCARD form
+          atom ::= * SYMBOL
+          atom ::= * NUMBER
+          atom ::= * STRING
+          atom ::= * KEYWORD
+          atom ::= * CHARACTER
+          atom ::= * NIL
+          atom ::= * TRUE|FALSE
+
+                           PAL shift        5      
+                           CRL shift        1      
+                           SQL shift        3      
+                          LSET shift        2      
+                        TAGGED shift        13     
+                       DISCARD shift        11     
+                        SYMBOL shift-reduce 32     atom ::= SYMBOL
+                        NUMBER shift-reduce 33     atom ::= NUMBER
+                        STRING shift-reduce 34     atom ::= STRING
+                       KEYWORD shift-reduce 35     atom ::= KEYWORD
+                     CHARACTER shift-reduce 36     atom ::= CHARACTER
+                           NIL shift-reduce 37     atom ::= NIL
+                          TRUE shift-reduce 38     atom ::= TRUE|FALSE
+                         FALSE shift-reduce 38     atom ::= TRUE|FALSE
+                           edn accept
+                         forms shift        9      
+                          form shift-reduce 2      forms ::= form
+                          atom shift-reduce 8      form ::= atom
+                          list shift-reduce 3      form ::= list
+                        vector shift-reduce 5      form ::= vector
+                           map shift-reduce 4      form ::= map
+                           set shift-reduce 6      form ::= set
+                       discard shift-reduce 9      form ::= discard
+                        tagged shift-reduce 7      form ::= tagged
+
+State 1:
+          list ::= * PAL l_forms PAR
+          list ::= * PAL PAR
+          map ::= * CRL pairs CRR
+          map ::= CRL * pairs CRR
+          map ::= * CRL CRR
+          map ::= CRL * CRR
+          vector ::= * SQL v_forms SQR
+          vector ::= * SQL SQR
+          set ::= * LSET s_forms CRR
+          set ::= * LSET CRR
+          tagged ::= * TAGGED t_form
+          tagged ::= * TAGGED discard t_form
+          discard ::= * DISCARD form
+          pairs ::= * pairs pair
+          pairs ::= * pair
+          pair ::= * m_form m_form
+          pair ::= * m_form discard m_form
+          pair ::= * discard
+          m_form ::= * list
+          m_form ::= * map
+          m_form ::= * vector
+          m_form ::= * set
+          m_form ::= * tagged
+          m_form ::= * atom
+          atom ::= * SYMBOL
+          atom ::= * NUMBER
+          atom ::= * STRING
+          atom ::= * KEYWORD
+          atom ::= * CHARACTER
+          atom ::= * NIL
+          atom ::= * TRUE|FALSE
+
+                           PAL shift        5      
+                           CRL shift        1      
+                           CRR shift-reduce 13     map ::= CRL CRR
+                           SQL shift        3      
+                          LSET shift        2      
+                        TAGGED shift        13     
+                       DISCARD shift        11     
+                        SYMBOL shift-reduce 32     atom ::= SYMBOL
+                        NUMBER shift-reduce 33     atom ::= NUMBER
+                        STRING shift-reduce 34     atom ::= STRING
+                       KEYWORD shift-reduce 35     atom ::= KEYWORD
+                     CHARACTER shift-reduce 36     atom ::= CHARACTER
+                           NIL shift-reduce 37     atom ::= NIL
+                          TRUE shift-reduce 38     atom ::= TRUE|FALSE
+                         FALSE shift-reduce 38     atom ::= TRUE|FALSE
+                          atom shift        10       /* because atom==m_form */
+                          list shift        10       /* because list==m_form */
+                        vector shift        10       /* because vector==m_form */
+                           map shift        10       /* because map==m_form */
+                           set shift        10       /* because set==m_form */
+                       discard shift-reduce 29     pair ::= discard
+                        tagged shift        10       /* because tagged==m_form */
+                          pair shift-reduce 26     pairs ::= pair
+                         pairs shift        4      
+                        m_form shift        10     
+
+State 2:
+          form ::= * list
+          form ::= * map
+          form ::= * vector
+          form ::= * set
+          form ::= * tagged
+          form ::= * atom
+          form ::= * discard
+          list ::= * PAL l_forms PAR
+          list ::= * PAL PAR
+          map ::= * CRL pairs CRR
+          map ::= * CRL CRR
+          vector ::= * SQL v_forms SQR
+          vector ::= * SQL SQR
+          set ::= * LSET s_forms CRR
+          set ::= LSET * s_forms CRR
+          set ::= * LSET CRR
+          set ::= LSET * CRR
+          tagged ::= * TAGGED t_form
+          tagged ::= * TAGGED discard t_form
+          discard ::= * DISCARD form
+          s_forms ::= * s_forms form
+          s_forms ::= * form
+          atom ::= * SYMBOL
+          atom ::= * NUMBER
+          atom ::= * STRING
+          atom ::= * KEYWORD
+          atom ::= * CHARACTER
+          atom ::= * NIL
+          atom ::= * TRUE|FALSE
+
+                           PAL shift        5      
+                           CRL shift        1      
+                           CRR shift-reduce 17     set ::= LSET CRR
+                           SQL shift        3      
+                          LSET shift        2      
+                        TAGGED shift        13     
+                       DISCARD shift        11     
+                        SYMBOL shift-reduce 32     atom ::= SYMBOL
+                        NUMBER shift-reduce 33     atom ::= NUMBER
+                        STRING shift-reduce 34     atom ::= STRING
+                       KEYWORD shift-reduce 35     atom ::= KEYWORD
+                     CHARACTER shift-reduce 36     atom ::= CHARACTER
+                           NIL shift-reduce 37     atom ::= NIL
+                          TRUE shift-reduce 38     atom ::= TRUE|FALSE
+                         FALSE shift-reduce 38     atom ::= TRUE|FALSE
+                          form shift-reduce 31     s_forms ::= form
+                          atom shift-reduce 8      form ::= atom
+                          list shift-reduce 3      form ::= list
+                        vector shift-reduce 5      form ::= vector
+                           map shift-reduce 4      form ::= map
+                           set shift-reduce 6      form ::= set
+                       s_forms shift        7      
+                       discard shift-reduce 9      form ::= discard
+                        tagged shift-reduce 7      form ::= tagged
+
+State 3:
+          form ::= * list
+          form ::= * map
+          form ::= * vector
+          form ::= * set
+          form ::= * tagged
+          form ::= * atom
+          form ::= * discard
+          list ::= * PAL l_forms PAR
+          list ::= * PAL PAR
+          map ::= * CRL pairs CRR
+          map ::= * CRL CRR
+          vector ::= * SQL v_forms SQR
+          vector ::= SQL * v_forms SQR
+          vector ::= * SQL SQR
+          vector ::= SQL * SQR
+          set ::= * LSET s_forms CRR
+          set ::= * LSET CRR
+          tagged ::= * TAGGED t_form
+          tagged ::= * TAGGED discard t_form
+          discard ::= * DISCARD form
+          v_forms ::= * v_forms form
+          v_forms ::= * form
+          atom ::= * SYMBOL
+          atom ::= * NUMBER
+          atom ::= * STRING
+          atom ::= * KEYWORD
+          atom ::= * CHARACTER
+          atom ::= * NIL
+          atom ::= * TRUE|FALSE
+
+                           PAL shift        5      
+                           CRL shift        1      
+                           SQL shift        3      
+                           SQR shift-reduce 15     vector ::= SQL SQR
+                          LSET shift        2      
+                        TAGGED shift        13     
+                       DISCARD shift        11     
+                        SYMBOL shift-reduce 32     atom ::= SYMBOL
+                        NUMBER shift-reduce 33     atom ::= NUMBER
+                        STRING shift-reduce 34     atom ::= STRING
+                       KEYWORD shift-reduce 35     atom ::= KEYWORD
+                     CHARACTER shift-reduce 36     atom ::= CHARACTER
+                           NIL shift-reduce 37     atom ::= NIL
+                          TRUE shift-reduce 38     atom ::= TRUE|FALSE
+                         FALSE shift-reduce 38     atom ::= TRUE|FALSE
+                          form shift-reduce 24     v_forms ::= form
+                          atom shift-reduce 8      form ::= atom
+                          list shift-reduce 3      form ::= list
+                        vector shift-reduce 5      form ::= vector
+                           map shift-reduce 4      form ::= map
+                           set shift-reduce 6      form ::= set
+                       v_forms shift        8      
+                       discard shift-reduce 9      form ::= discard
+                        tagged shift-reduce 7      form ::= tagged
+
+State 4:
+          list ::= * PAL l_forms PAR
+          list ::= * PAL PAR
+          map ::= * CRL pairs CRR
+          map ::= CRL pairs * CRR
+          map ::= * CRL CRR
+          vector ::= * SQL v_forms SQR
+          vector ::= * SQL SQR
+          set ::= * LSET s_forms CRR
+          set ::= * LSET CRR
+          tagged ::= * TAGGED t_form
+          tagged ::= * TAGGED discard t_form
+          discard ::= * DISCARD form
+          pairs ::= pairs * pair
+          pair ::= * m_form m_form
+          pair ::= * m_form discard m_form
+          pair ::= * discard
+          m_form ::= * list
+          m_form ::= * map
+          m_form ::= * vector
+          m_form ::= * set
+          m_form ::= * tagged
+          m_form ::= * atom
+          atom ::= * SYMBOL
+          atom ::= * NUMBER
+          atom ::= * STRING
+          atom ::= * KEYWORD
+          atom ::= * CHARACTER
+          atom ::= * NIL
+          atom ::= * TRUE|FALSE
+
+                           PAL shift        5      
+                           CRL shift        1      
+                           CRR shift-reduce 12     map ::= CRL pairs CRR
+                           SQL shift        3      
+                          LSET shift        2      
+                        TAGGED shift        13     
+                       DISCARD shift        11     
+                        SYMBOL shift-reduce 32     atom ::= SYMBOL
+                        NUMBER shift-reduce 33     atom ::= NUMBER
+                        STRING shift-reduce 34     atom ::= STRING
+                       KEYWORD shift-reduce 35     atom ::= KEYWORD
+                     CHARACTER shift-reduce 36     atom ::= CHARACTER
+                           NIL shift-reduce 37     atom ::= NIL
+                          TRUE shift-reduce 38     atom ::= TRUE|FALSE
+                         FALSE shift-reduce 38     atom ::= TRUE|FALSE
+                          atom shift        10       /* because atom==m_form */
+                          list shift        10       /* because list==m_form */
+                        vector shift        10       /* because vector==m_form */
+                           map shift        10       /* because map==m_form */
+                           set shift        10       /* because set==m_form */
+                       discard shift-reduce 29     pair ::= discard
+                        tagged shift        10       /* because tagged==m_form */
+                          pair shift-reduce 25     pairs ::= pairs pair
+                        m_form shift        10     
+
+State 5:
+          form ::= * list
+          form ::= * map
+          form ::= * vector
+          form ::= * set
+          form ::= * tagged
+          form ::= * atom
+          form ::= * discard
+          list ::= * PAL l_forms PAR
+          list ::= PAL * l_forms PAR
+          list ::= * PAL PAR
+          list ::= PAL * PAR
+          map ::= * CRL pairs CRR
+          map ::= * CRL CRR
+          vector ::= * SQL v_forms SQR
+          vector ::= * SQL SQR
+          set ::= * LSET s_forms CRR
+          set ::= * LSET CRR
+          tagged ::= * TAGGED t_form
+          tagged ::= * TAGGED discard t_form
+          discard ::= * DISCARD form
+          l_forms ::= * form l_forms
+          l_forms ::= * form
+          atom ::= * SYMBOL
+          atom ::= * NUMBER
+          atom ::= * STRING
+          atom ::= * KEYWORD
+          atom ::= * CHARACTER
+          atom ::= * NIL
+          atom ::= * TRUE|FALSE
+
+                           PAL shift        5      
+                           PAR shift-reduce 11     list ::= PAL PAR
+                           CRL shift        1      
+                           SQL shift        3      
+                          LSET shift        2      
+                        TAGGED shift        13     
+                       DISCARD shift        11     
+                        SYMBOL shift-reduce 32     atom ::= SYMBOL
+                        NUMBER shift-reduce 33     atom ::= NUMBER
+                        STRING shift-reduce 34     atom ::= STRING
+                       KEYWORD shift-reduce 35     atom ::= KEYWORD
+                     CHARACTER shift-reduce 36     atom ::= CHARACTER
+                           NIL shift-reduce 37     atom ::= NIL
+                          TRUE shift-reduce 38     atom ::= TRUE|FALSE
+                         FALSE shift-reduce 38     atom ::= TRUE|FALSE
+                          form shift        6      
+                          atom shift-reduce 8      form ::= atom
+                          list shift-reduce 3      form ::= list
+                        vector shift-reduce 5      form ::= vector
+                           map shift-reduce 4      form ::= map
+                           set shift-reduce 6      form ::= set
+                       l_forms shift        15     
+                       discard shift-reduce 9      form ::= discard
+                        tagged shift-reduce 7      form ::= tagged
+
+State 6:
+          form ::= * list
+          form ::= * map
+          form ::= * vector
+          form ::= * set
+          form ::= * tagged
+          form ::= * atom
+          form ::= * discard
+          list ::= * PAL l_forms PAR
+          list ::= * PAL PAR
+          map ::= * CRL pairs CRR
+          map ::= * CRL CRR
+          vector ::= * SQL v_forms SQR
+          vector ::= * SQL SQR
+          set ::= * LSET s_forms CRR
+          set ::= * LSET CRR
+          tagged ::= * TAGGED t_form
+          tagged ::= * TAGGED discard t_form
+          discard ::= * DISCARD form
+          l_forms ::= * form l_forms
+          l_forms ::= form * l_forms
+          l_forms ::= * form
+     (22) l_forms ::= form *
+          atom ::= * SYMBOL
+          atom ::= * NUMBER
+          atom ::= * STRING
+          atom ::= * KEYWORD
+          atom ::= * CHARACTER
+          atom ::= * NIL
+          atom ::= * TRUE|FALSE
+
+                           PAL shift        5      
+                           CRL shift        1      
+                           SQL shift        3      
+                          LSET shift        2      
+                        TAGGED shift        13     
+                       DISCARD shift        11     
+                        SYMBOL shift-reduce 32     atom ::= SYMBOL
+                        NUMBER shift-reduce 33     atom ::= NUMBER
+                        STRING shift-reduce 34     atom ::= STRING
+                       KEYWORD shift-reduce 35     atom ::= KEYWORD
+                     CHARACTER shift-reduce 36     atom ::= CHARACTER
+                           NIL shift-reduce 37     atom ::= NIL
+                          TRUE shift-reduce 38     atom ::= TRUE|FALSE
+                         FALSE shift-reduce 38     atom ::= TRUE|FALSE
+                          form shift        6      
+                          atom shift-reduce 8      form ::= atom
+                          list shift-reduce 3      form ::= list
+                        vector shift-reduce 5      form ::= vector
+                           map shift-reduce 4      form ::= map
+                           set shift-reduce 6      form ::= set
+                       l_forms shift-reduce 21     l_forms ::= form l_forms
+                       discard shift-reduce 9      form ::= discard
+                        tagged shift-reduce 7      form ::= tagged
+                     {default} reduce       22     l_forms ::= form
+
+State 7:
+          form ::= * list
+          form ::= * map
+          form ::= * vector
+          form ::= * set
+          form ::= * tagged
+          form ::= * atom
+          form ::= * discard
+          list ::= * PAL l_forms PAR
+          list ::= * PAL PAR
+          map ::= * CRL pairs CRR
+          map ::= * CRL CRR
+          vector ::= * SQL v_forms SQR
+          vector ::= * SQL SQR
+          set ::= * LSET s_forms CRR
+          set ::= LSET s_forms * CRR
+          set ::= * LSET CRR
+          tagged ::= * TAGGED t_form
+          tagged ::= * TAGGED discard t_form
+          discard ::= * DISCARD form
+          s_forms ::= s_forms * form
+          atom ::= * SYMBOL
+          atom ::= * NUMBER
+          atom ::= * STRING
+          atom ::= * KEYWORD
+          atom ::= * CHARACTER
+          atom ::= * NIL
+          atom ::= * TRUE|FALSE
+
+                           PAL shift        5      
+                           CRL shift        1      
+                           CRR shift-reduce 16     set ::= LSET s_forms CRR
+                           SQL shift        3      
+                          LSET shift        2      
+                        TAGGED shift        13     
+                       DISCARD shift        11     
+                        SYMBOL shift-reduce 32     atom ::= SYMBOL
+                        NUMBER shift-reduce 33     atom ::= NUMBER
+                        STRING shift-reduce 34     atom ::= STRING
+                       KEYWORD shift-reduce 35     atom ::= KEYWORD
+                     CHARACTER shift-reduce 36     atom ::= CHARACTER
+                           NIL shift-reduce 37     atom ::= NIL
+                          TRUE shift-reduce 38     atom ::= TRUE|FALSE
+                         FALSE shift-reduce 38     atom ::= TRUE|FALSE
+                          form shift-reduce 30     s_forms ::= s_forms form
+                          atom shift-reduce 8      form ::= atom
+                          list shift-reduce 3      form ::= list
+                        vector shift-reduce 5      form ::= vector
+                           map shift-reduce 4      form ::= map
+                           set shift-reduce 6      form ::= set
+                       discard shift-reduce 9      form ::= discard
+                        tagged shift-reduce 7      form ::= tagged
+
+State 8:
+          form ::= * list
+          form ::= * map
+          form ::= * vector
+          form ::= * set
+          form ::= * tagged
+          form ::= * atom
+          form ::= * discard
+          list ::= * PAL l_forms PAR
+          list ::= * PAL PAR
+          map ::= * CRL pairs CRR
+          map ::= * CRL CRR
+          vector ::= * SQL v_forms SQR
+          vector ::= SQL v_forms * SQR
+          vector ::= * SQL SQR
+          set ::= * LSET s_forms CRR
+          set ::= * LSET CRR
+          tagged ::= * TAGGED t_form
+          tagged ::= * TAGGED discard t_form
+          discard ::= * DISCARD form
+          v_forms ::= v_forms * form
+          atom ::= * SYMBOL
+          atom ::= * NUMBER
+          atom ::= * STRING
+          atom ::= * KEYWORD
+          atom ::= * CHARACTER
+          atom ::= * NIL
+          atom ::= * TRUE|FALSE
+
+                           PAL shift        5      
+                           CRL shift        1      
+                           SQL shift        3      
+                           SQR shift-reduce 14     vector ::= SQL v_forms SQR
+                          LSET shift        2      
+                        TAGGED shift        13     
+                       DISCARD shift        11     
+                        SYMBOL shift-reduce 32     atom ::= SYMBOL
+                        NUMBER shift-reduce 33     atom ::= NUMBER
+                        STRING shift-reduce 34     atom ::= STRING
+                       KEYWORD shift-reduce 35     atom ::= KEYWORD
+                     CHARACTER shift-reduce 36     atom ::= CHARACTER
+                           NIL shift-reduce 37     atom ::= NIL
+                          TRUE shift-reduce 38     atom ::= TRUE|FALSE
+                         FALSE shift-reduce 38     atom ::= TRUE|FALSE
+                          form shift-reduce 23     v_forms ::= v_forms form
+                          atom shift-reduce 8      form ::= atom
+                          list shift-reduce 3      form ::= list
+                        vector shift-reduce 5      form ::= vector
+                           map shift-reduce 4      form ::= map
+                           set shift-reduce 6      form ::= set
+                       discard shift-reduce 9      form ::= discard
+                        tagged shift-reduce 7      form ::= tagged
+
+State 9:
+      (0) edn ::= forms *
+          forms ::= forms * form
+          form ::= * list
+          form ::= * map
+          form ::= * vector
+          form ::= * set
+          form ::= * tagged
+          form ::= * atom
+          form ::= * discard
+          list ::= * PAL l_forms PAR
+          list ::= * PAL PAR
+          map ::= * CRL pairs CRR
+          map ::= * CRL CRR
+          vector ::= * SQL v_forms SQR
+          vector ::= * SQL SQR
+          set ::= * LSET s_forms CRR
+          set ::= * LSET CRR
+          tagged ::= * TAGGED t_form
+          tagged ::= * TAGGED discard t_form
+          discard ::= * DISCARD form
+          atom ::= * SYMBOL
+          atom ::= * NUMBER
+          atom ::= * STRING
+          atom ::= * KEYWORD
+          atom ::= * CHARACTER
+          atom ::= * NIL
+          atom ::= * TRUE|FALSE
+
+                             $ reduce       0      edn ::= forms
+                           PAL shift        5      
+                           CRL shift        1      
+                           SQL shift        3      
+                          LSET shift        2      
+                        TAGGED shift        13     
+                       DISCARD shift        11     
+                        SYMBOL shift-reduce 32     atom ::= SYMBOL
+                        NUMBER shift-reduce 33     atom ::= NUMBER
+                        STRING shift-reduce 34     atom ::= STRING
+                       KEYWORD shift-reduce 35     atom ::= KEYWORD
+                     CHARACTER shift-reduce 36     atom ::= CHARACTER
+                           NIL shift-reduce 37     atom ::= NIL
+                          TRUE shift-reduce 38     atom ::= TRUE|FALSE
+                         FALSE shift-reduce 38     atom ::= TRUE|FALSE
+                          form shift-reduce 1      forms ::= forms form
+                          atom shift-reduce 8      form ::= atom
+                          list shift-reduce 3      form ::= list
+                        vector shift-reduce 5      form ::= vector
+                           map shift-reduce 4      form ::= map
+                           set shift-reduce 6      form ::= set
+                       discard shift-reduce 9      form ::= discard
+                        tagged shift-reduce 7      form ::= tagged
+
+State 10:
+          list ::= * PAL l_forms PAR
+          list ::= * PAL PAR
+          map ::= * CRL pairs CRR
+          map ::= * CRL CRR
+          vector ::= * SQL v_forms SQR
+          vector ::= * SQL SQR
+          set ::= * LSET s_forms CRR
+          set ::= * LSET CRR
+          tagged ::= * TAGGED t_form
+          tagged ::= * TAGGED discard t_form
+          discard ::= * DISCARD form
+          pair ::= m_form * m_form
+          pair ::= m_form * discard m_form
+          m_form ::= * list
+          m_form ::= * map
+          m_form ::= * vector
+          m_form ::= * set
+          m_form ::= * tagged
+          m_form ::= * atom
+          atom ::= * SYMBOL
+          atom ::= * NUMBER
+          atom ::= * STRING
+          atom ::= * KEYWORD
+          atom ::= * CHARACTER
+          atom ::= * NIL
+          atom ::= * TRUE|FALSE
+
+                           PAL shift        5      
+                           CRL shift        1      
+                           SQL shift        3      
+                          LSET shift        2      
+                        TAGGED shift        13     
+                       DISCARD shift        11     
+                        SYMBOL shift-reduce 32     atom ::= SYMBOL
+                        NUMBER shift-reduce 33     atom ::= NUMBER
+                        STRING shift-reduce 34     atom ::= STRING
+                       KEYWORD shift-reduce 35     atom ::= KEYWORD
+                     CHARACTER shift-reduce 36     atom ::= CHARACTER
+                           NIL shift-reduce 37     atom ::= NIL
+                          TRUE shift-reduce 38     atom ::= TRUE|FALSE
+                         FALSE shift-reduce 38     atom ::= TRUE|FALSE
+                          atom shift-reduce 27     pair ::= m_form m_form  /* because atom==m_form */
+                          list shift-reduce 27     pair ::= m_form m_form  /* because list==m_form */
+                        vector shift-reduce 27     pair ::= m_form m_form  /* because vector==m_form */
+                           map shift-reduce 27     pair ::= m_form m_form  /* because map==m_form */
+                           set shift-reduce 27     pair ::= m_form m_form  /* because set==m_form */
+                       discard shift        12     
+                        tagged shift-reduce 27     pair ::= m_form m_form  /* because tagged==m_form */
+                        m_form shift-reduce 27     pair ::= m_form m_form
+
+State 11:
+          form ::= * list
+          form ::= * map
+          form ::= * vector
+          form ::= * set
+          form ::= * tagged
+          form ::= * atom
+          form ::= * discard
+          list ::= * PAL l_forms PAR
+          list ::= * PAL PAR
+          map ::= * CRL pairs CRR
+          map ::= * CRL CRR
+          vector ::= * SQL v_forms SQR
+          vector ::= * SQL SQR
+          set ::= * LSET s_forms CRR
+          set ::= * LSET CRR
+          tagged ::= * TAGGED t_form
+          tagged ::= * TAGGED discard t_form
+          discard ::= * DISCARD form
+          discard ::= DISCARD * form
+          atom ::= * SYMBOL
+          atom ::= * NUMBER
+          atom ::= * STRING
+          atom ::= * KEYWORD
+          atom ::= * CHARACTER
+          atom ::= * NIL
+          atom ::= * TRUE|FALSE
+
+                           PAL shift        5      
+                           CRL shift        1      
+                           SQL shift        3      
+                          LSET shift        2      
+                        TAGGED shift        13     
+                       DISCARD shift        11     
+                        SYMBOL shift-reduce 32     atom ::= SYMBOL
+                        NUMBER shift-reduce 33     atom ::= NUMBER
+                        STRING shift-reduce 34     atom ::= STRING
+                       KEYWORD shift-reduce 35     atom ::= KEYWORD
+                     CHARACTER shift-reduce 36     atom ::= CHARACTER
+                           NIL shift-reduce 37     atom ::= NIL
+                          TRUE shift-reduce 38     atom ::= TRUE|FALSE
+                         FALSE shift-reduce 38     atom ::= TRUE|FALSE
+                          form shift-reduce 20     discard ::= DISCARD form
+                          atom shift-reduce 8      form ::= atom
+                          list shift-reduce 3      form ::= list
+                        vector shift-reduce 5      form ::= vector
+                           map shift-reduce 4      form ::= map
+                           set shift-reduce 6      form ::= set
+                       discard shift-reduce 9      form ::= discard
+                        tagged shift-reduce 7      form ::= tagged
+
+State 12:
+          list ::= * PAL l_forms PAR
+          list ::= * PAL PAR
+          map ::= * CRL pairs CRR
+          map ::= * CRL CRR
+          vector ::= * SQL v_forms SQR
+          vector ::= * SQL SQR
+          set ::= * LSET s_forms CRR
+          set ::= * LSET CRR
+          tagged ::= * TAGGED t_form
+          tagged ::= * TAGGED discard t_form
+          pair ::= m_form discard * m_form
+          m_form ::= * list
+          m_form ::= * map
+          m_form ::= * vector
+          m_form ::= * set
+          m_form ::= * tagged
+          m_form ::= * atom
+          atom ::= * SYMBOL
+          atom ::= * NUMBER
+          atom ::= * STRING
+          atom ::= * KEYWORD
+          atom ::= * CHARACTER
+          atom ::= * NIL
+          atom ::= * TRUE|FALSE
+
+                           PAL shift        5      
+                           CRL shift        1      
+                           SQL shift        3      
+                          LSET shift        2      
+                        TAGGED shift        13     
+                        SYMBOL shift-reduce 32     atom ::= SYMBOL
+                        NUMBER shift-reduce 33     atom ::= NUMBER
+                        STRING shift-reduce 34     atom ::= STRING
+                       KEYWORD shift-reduce 35     atom ::= KEYWORD
+                     CHARACTER shift-reduce 36     atom ::= CHARACTER
+                           NIL shift-reduce 37     atom ::= NIL
+                          TRUE shift-reduce 38     atom ::= TRUE|FALSE
+                         FALSE shift-reduce 38     atom ::= TRUE|FALSE
+                          atom shift-reduce 28     pair ::= m_form discard m_form  /* because atom==m_form */
+                          list shift-reduce 28     pair ::= m_form discard m_form  /* because list==m_form */
+                        vector shift-reduce 28     pair ::= m_form discard m_form  /* because vector==m_form */
+                           map shift-reduce 28     pair ::= m_form discard m_form  /* because map==m_form */
+                           set shift-reduce 28     pair ::= m_form discard m_form  /* because set==m_form */
+                        tagged shift-reduce 28     pair ::= m_form discard m_form  /* because tagged==m_form */
+                        m_form shift-reduce 28     pair ::= m_form discard m_form
+
+State 13:
+          list ::= * PAL l_forms PAR
+          list ::= * PAL PAR
+          map ::= * CRL pairs CRR
+          map ::= * CRL CRR
+          vector ::= * SQL v_forms SQR
+          vector ::= * SQL SQR
+          set ::= * LSET s_forms CRR
+          set ::= * LSET CRR
+          tagged ::= TAGGED * t_form
+          tagged ::= TAGGED * discard t_form
+          discard ::= * DISCARD form
+          t_form ::= * list
+          t_form ::= * map
+          t_form ::= * vector
+          t_form ::= * set
+          t_form ::= * atom
+          atom ::= * SYMBOL
+          atom ::= * NUMBER
+          atom ::= * STRING
+          atom ::= * KEYWORD
+          atom ::= * CHARACTER
+          atom ::= * NIL
+          atom ::= * TRUE|FALSE
+
+                           PAL shift        5      
+                           CRL shift        1      
+                           SQL shift        3      
+                          LSET shift        2      
+                       DISCARD shift        11     
+                        SYMBOL shift-reduce 32     atom ::= SYMBOL
+                        NUMBER shift-reduce 33     atom ::= NUMBER
+                        STRING shift-reduce 34     atom ::= STRING
+                       KEYWORD shift-reduce 35     atom ::= KEYWORD
+                     CHARACTER shift-reduce 36     atom ::= CHARACTER
+                           NIL shift-reduce 37     atom ::= NIL
+                          TRUE shift-reduce 38     atom ::= TRUE|FALSE
+                         FALSE shift-reduce 38     atom ::= TRUE|FALSE
+                          atom shift-reduce 18     tagged ::= TAGGED t_form  /* because atom==t_form */
+                          list shift-reduce 18     tagged ::= TAGGED t_form  /* because list==t_form */
+                        vector shift-reduce 18     tagged ::= TAGGED t_form  /* because vector==t_form */
+                           map shift-reduce 18     tagged ::= TAGGED t_form  /* because map==t_form */
+                           set shift-reduce 18     tagged ::= TAGGED t_form  /* because set==t_form */
+                       discard shift        14     
+                        t_form shift-reduce 18     tagged ::= TAGGED t_form
+
+State 14:
+          list ::= * PAL l_forms PAR
+          list ::= * PAL PAR
+          map ::= * CRL pairs CRR
+          map ::= * CRL CRR
+          vector ::= * SQL v_forms SQR
+          vector ::= * SQL SQR
+          set ::= * LSET s_forms CRR
+          set ::= * LSET CRR
+          tagged ::= TAGGED discard * t_form
+          t_form ::= * list
+          t_form ::= * map
+          t_form ::= * vector
+          t_form ::= * set
+          t_form ::= * atom
+          atom ::= * SYMBOL
+          atom ::= * NUMBER
+          atom ::= * STRING
+          atom ::= * KEYWORD
+          atom ::= * CHARACTER
+          atom ::= * NIL
+          atom ::= * TRUE|FALSE
+
+                           PAL shift        5      
+                           CRL shift        1      
+                           SQL shift        3      
+                          LSET shift        2      
+                        SYMBOL shift-reduce 32     atom ::= SYMBOL
+                        NUMBER shift-reduce 33     atom ::= NUMBER
+                        STRING shift-reduce 34     atom ::= STRING
+                       KEYWORD shift-reduce 35     atom ::= KEYWORD
+                     CHARACTER shift-reduce 36     atom ::= CHARACTER
+                           NIL shift-reduce 37     atom ::= NIL
+                          TRUE shift-reduce 38     atom ::= TRUE|FALSE
+                         FALSE shift-reduce 38     atom ::= TRUE|FALSE
+                          atom shift-reduce 19     tagged ::= TAGGED discard t_form  /* because atom==t_form */
+                          list shift-reduce 19     tagged ::= TAGGED discard t_form  /* because list==t_form */
+                        vector shift-reduce 19     tagged ::= TAGGED discard t_form  /* because vector==t_form */
+                           map shift-reduce 19     tagged ::= TAGGED discard t_form  /* because map==t_form */
+                           set shift-reduce 19     tagged ::= TAGGED discard t_form  /* because set==t_form */
+                        t_form shift-reduce 19     tagged ::= TAGGED discard t_form
+
+State 15:
+          list ::= PAL l_forms * PAR
+
+                           PAR shift-reduce 10     list ::= PAL l_forms PAR
+
+----------------------------------------------------
+Symbols:
+The first-set of non-terminals is shown after the name.
+
+    0: $:
+    1: PAL
+    2: PAR
+    3: CRL
+    4: CRR
+    5: SQL
+    6: SQR
+    7: LSET
+    8: TAGGED
+    9: DISCARD
+   10: SYMBOL
+   11: NUMBER
+   12: STRING
+   13: KEYWORD
+   14: CHARACTER
+   15: NIL
+   16: TRUE
+   17: FALSE
+   18: edn: PAL CRL SQL LSET TAGGED DISCARD SYMBOL NUMBER STRING KEYWORD CHARACTER NIL TRUE FALSE
+   19: forms: PAL CRL SQL LSET TAGGED DISCARD SYMBOL NUMBER STRING KEYWORD CHARACTER NIL TRUE FALSE
+   20: form: PAL CRL SQL LSET TAGGED DISCARD SYMBOL NUMBER STRING KEYWORD CHARACTER NIL TRUE FALSE
+   21: atom: SYMBOL NUMBER STRING KEYWORD CHARACTER NIL TRUE FALSE
+   22: list: PAL
+   23: vector: SQL
+   24: map: CRL
+   25: set: LSET
+   26: v_forms: PAL CRL SQL LSET TAGGED DISCARD SYMBOL NUMBER STRING KEYWORD CHARACTER NIL TRUE FALSE
+   27: s_forms: PAL CRL SQL LSET TAGGED DISCARD SYMBOL NUMBER STRING KEYWORD CHARACTER NIL TRUE FALSE
+   28: l_forms: PAL CRL SQL LSET TAGGED DISCARD SYMBOL NUMBER STRING KEYWORD CHARACTER NIL TRUE FALSE
+   29: discard: DISCARD
+   30: tagged: TAGGED
+   31: boolean:
+   32: pair: PAL CRL SQL LSET TAGGED DISCARD SYMBOL NUMBER STRING KEYWORD CHARACTER NIL TRUE FALSE
+   33: pairs: PAL CRL SQL LSET TAGGED DISCARD SYMBOL NUMBER STRING KEYWORD CHARACTER NIL TRUE FALSE
+   34: m_form: PAL CRL SQL LSET TAGGED SYMBOL NUMBER STRING KEYWORD CHARACTER NIL TRUE FALSE
+   35: t_form: PAL CRL SQL LSET SYMBOL NUMBER STRING KEYWORD CHARACTER NIL TRUE FALSE
+----------------------------------------------------
+Syntax-only Symbols:
+The following symbols never carry semantic content.
+
+$ PAL PAR CRL CRR SQL SQR LSET DISCARD TRUE FALSE edn boolean
+----------------------------------------------------
+Rules:
+   0: edn ::= forms.
+   1: forms ::= forms form.
+   2: forms ::= form.
+   3: form ::= list.
+   4: form ::= map.
+   5: form ::= vector.
+   6: form ::= set.
+   7: form ::= tagged.
+   8: form ::= atom.
+   9: form ::= discard.
+  10: list ::= PAL l_forms PAR.
+  11: list ::= PAL PAR.
+  12: map ::= CRL pairs CRR.
+  13: map ::= CRL CRR.
+  14: vector ::= SQL v_forms SQR.
+  15: vector ::= SQL SQR.
+  16: set ::= LSET s_forms CRR.
+  17: set ::= LSET CRR.
+  18: tagged ::= TAGGED t_form.
+  19: tagged ::= TAGGED discard t_form.
+  20: discard ::= DISCARD form.
+  21: l_forms ::= form l_forms.
+  22: l_forms ::= form.
+  23: v_forms ::= v_forms form.
+  24: v_forms ::= form.
+  25: pairs ::= pairs pair.
+  26: pairs ::= pair.
+  27: pair ::= m_form m_form.
+  28: pair ::= m_form discard m_form.
+  29: pair ::= discard.
+  30: s_forms ::= s_forms form.
+  31: s_forms ::= form.
+  32: atom ::= SYMBOL.
+  33: atom ::= NUMBER.
+  34: atom ::= STRING.
+  35: atom ::= KEYWORD.
+  36: atom ::= CHARACTER.
+  37: atom ::= NIL.
+  38: atom ::= TRUE|FALSE.
+  39: m_form ::= list.
+  40: m_form ::= map.
+  41: m_form ::= vector.
+  42: m_form ::= set.
+  43: m_form ::= tagged.
+  44: m_form ::= atom.
+  45: t_form ::= list.
+  46: t_form ::= map.
+  47: t_form ::= vector.
+  48: t_form ::= set.
+  49: t_form ::= atom.
