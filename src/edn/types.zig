@@ -421,7 +421,7 @@ const equal = struct {
 
 const Hash = struct {
     pub fn form(hasher: anytype, a_form: *const Form) void {
-        const b = @intFromEnum(std.meta.activeTag(a_form.*));
+        const b = @backingInt(std.meta.activeTag(a_form.*));
         hasher.update(&.{b});
         switch (a_form.*) {
             .nil => {},
@@ -435,7 +435,7 @@ const Hash = struct {
     }
 
     pub fn atom(hasher: anytype, an_atom: *const Atom) void {
-        const b = @intFromEnum(std.meta.activeTag(an_atom.*));
+        const b = @backingInt(std.meta.activeTag(an_atom.*));
         hasher.update(&.{b});
         switch (an_atom.*) {
             .nil => {},

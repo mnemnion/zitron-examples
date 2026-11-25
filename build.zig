@@ -8,7 +8,7 @@ pub fn build(b: *std.Build) void {
 
     const zitron_dep = b.dependency("zitron", .{
         .target = b.graph.host,
-        .optimize = .Debug,
+        .optimize = .debug,
         .enum_file = true,
         .quiet = true,
         .show_conflicts = true,
